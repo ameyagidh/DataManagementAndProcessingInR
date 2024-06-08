@@ -1,0 +1,402 @@
+---
+title: "Data Visualization: looking at data"
+author: "Kylie Ariel Bemis"
+date: "9/17/2020"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r tidyverse, message=FALSE}
+library(tidyverse)
+```
+
+# Looking at data
+
+## Why do we look at data?
+
+Here's a dinosaur dataset:
+
+```{r dino}
+library(datasauRus)
+
+datasaurus_dozen %>%
+  filter(dataset == "dino") %>%
+  ggplot(aes(x=x, y=y)) +
+  geom_point() +
+  labs(x="x", y="y") +
+  theme_minimal()
+```
+
+Here's 12 more datasets with identical summary statistics:
+
+```{r dino-dozen-stats}
+datasaurus_dozen %>% 
+  group_by(dataset) %>% 
+  summarize(
+    mean_x    = mean(x),
+    mean_y    = mean(y),
+    std_dev_x = sd(x),
+    std_dev_y = sd(y),
+    corr_x_y  = cor(x, y))
+```
+
+But plotting them reveals quite a difference!
+
+```{r dino-dozen-plots}
+datasaurus_dozen %>%
+  filter(dataset != "dino") %>%
+  ggplot(aes(x=x, y=y, colour=dataset)) +
+  geom_point() +
+  theme_minimal() +
+  theme(legend.position = "none") +
+  facet_wrap(~dataset, ncol=3)
+```
+
+## Example data
+
+### Gapminder
+
+A small, tidied subset of the Gapminder data on life expectancy, GDP per capita, and population by country.
+
+```{r gapminder}
+library(gapminder)
+
+gapminder
+```
+
+Source: http://www.gapminder.org/data/
+
+### Fuel economy
+
+A small, tidied subset of fuel economy data from 1999 to 2008 for 38 popular models of cars, provided by the EPA.
+
+```{r mpg}
+library(ggplot2)
+
+mpg
+```
+
+Source: http://fueleconomy.gov/
+
+### Simulated
+
+Symmetric normal, left-skew, right-skew, and uniform data.
+
+```{r sim-data}
+set.seed(1)
+sim <- data.frame(x1=rnorm(1000),
+                  x2=rlnorm(1000, sdlog=0.5),
+                  x3=-rlnorm(1000, sdlog=0.5),
+                  x4=runif(1000))
+```
+
+## Single-variable graphics
+
+### Histogram
+
+```{r histogram-gapminder-1}
+ggplot(gapminder, aes(x=lifeExp)) +
+  geom_histogram() +
+  labs(title="Distribution of life expectancy (bins = 30)",
+       x="Life expectancy (years)") +
+  theme_minimal()
+```
+
+```{r histogram-gapminder-2}
+ggplot(gapminder, aes(x=lifeExp)) +
+  geom_histogram(bins = 50) +
+  labs(title="Distribution of life expectancy (bins = 50)",
+       x="Life expectancy (years)") +
+  theme_minimal()
+```
+
+```{r histogram-gapminder-3}
+ggplot(gapminder, aes(x=lifeExp)) +
+  geom_histogram(binwidth = 1) +
+  labs(title="Distribution of life expectancy (binwidth = 1 year)",
+       x="Life expectancy (years)") +
+  theme_minimal()
+```
+
+```{r histogram-sim-1}
+ggplot(sim, aes(x=x1)) +
+  geom_histogram() +
+  labs(title="Symmetric") +
+  theme_minimal()
+```
+
+```{r histogram-sim-2}
+ggplot(sim, aes(x=x2)) +
+  geom_histogram() +
+  labs(title="Right skew") +
+  theme_minimal()
+```
+
+```{r histogram-sim-3}
+ggplot(sim, aes(x=x3)) +
+  geom_histogram() +
+  labs(title="Left skew") +
+  theme_minimal()
+```
+
+### Density plot
+
+```{r density-gapminder-1}
+ggplot(gapminder, aes(x=lifeExp)) +
+  geom_density(fill="darkcyan") +
+  labs(title="Life expectancy (binwidth = 1 year)",
+       x="Life expectancy (years)") +
+  theme_minimal()
+```
+
+```{r density-sim-1}
+ggplot(sim, aes(x=x1)) +
+  geom_density(fill="darkcyan") +
+  labs(title="Symmetric") +
+  theme_minimal()
+```
+
+```{r density-sim-2}
+ggplot(sim, aes(x=x2)) +
+  geom_density(fill="darkcyan") +
+  labs(title="Right skew") +
+  theme_minimal()
+```
+
+```{r density-sim-3}
+ggplot(sim, aes(x=x3)) +
+  geom_density(fill="darkcyan") +
+  labs(title="Left skew") +
+  theme_minimal()
+```
+
+### Box plot
+
+```{r boxplot-gapminder-1}
+ggplot(gapminder, aes(x=lifeExp)) +
+  geom_boxplot() +
+  lims(y=c(-1, 1)) +
+  labs(title="Distribution of life expectancy",
+       x="Life expectancy (years)") +
+  theme_minimal()
+```
+
+```{r boxplot-sim-1}
+ggplot(sim, aes(x=x1)) +
+  geom_boxplot() +
+  lims(y=c(-1, 1)) +
+  labs(title="Symmetric") +
+  theme_minimal()
+```
+
+```{r boxplot-sim-2}
+ggplot(sim, aes(x=x2)) +
+  geom_boxplot() +
+  lims(y=c(-1, 1)) +
+  labs(title="Right skew") +
+  theme_minimal()
+```
+
+```{r boxplot-sim-3}
+ggplot(sim, aes(x=x3)) +
+  geom_boxplot() +
+  lims(y=c(-1, 1)) +
+  labs(title="Left skew") +
+  theme_minimal()
+```
+
+### Bar plot
+
+```{r barplot-mpg-1}
+ggplot(mpg, aes(x=class)) +
+  geom_bar() +
+  labs(title="Class of car") +
+  theme_minimal()
+```
+
+```{r barplot-mpg-2}
+ggplot(mpg, aes(x=manufacturer)) +
+  geom_bar() +
+  labs(title="Manufacturer representation") +
+  coord_flip() +
+  theme_minimal()
+```
+
+### Pie chart
+
+```{r pie-mpg-1}
+ggplot(mpg, aes(x=1, fill=class)) +
+  geom_bar() +
+  labs(title="Class of car") +
+  coord_polar("y") +
+  theme_minimal()
+```
+
+### Q-Q plot
+
+```{r qq-sim-1}
+ggplot(sim, aes(sample=x1)) +
+  geom_qq() +
+  labs(title="Symmetric") +
+  theme_minimal()
+```
+
+```{r qq-sim-2}
+ggplot(sim, aes(sample=x2)) +
+  geom_qq() +
+  labs(title="Right skew") +
+  theme_minimal()
+```
+
+```{r qq-sim-3}
+ggplot(sim, aes(sample=x3)) +
+  geom_qq() +
+  labs(title="Left skew") +
+  theme_minimal()
+```
+
+## Multi-variable graphics
+
+### Scatter plot
+
+```{r scatter-mpg-1}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  labs(title="Larger engines are less efficient",
+       x="Engine size (liters)", y="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+```{r scatter-mpg-2}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  geom_smooth() +
+  labs(title="Larger engines are less efficient",
+       x="Engine size (liters)", y="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+```{r scatter-mpg-3}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_jitter() +
+  geom_smooth() +
+  labs(title="Larger engines are less efficient",
+       x="Engine size (liters)", y="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+### 2D density plot
+
+```{r density2d-mpg-1}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_density2d_filled() +
+  labs(title="Larger engines are less efficient",
+       x="Engine size (liters)", y="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+### Box plots
+
+```{r boxplots-mpg-1}
+ggplot(mpg, aes(x=class, y=hwy)) +
+  geom_boxplot() +
+  labs(title="Fuel economoy for different car classes",
+       x="Type of car", y="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+```{r boxplots-mpg-2}
+ggplot(mpg, aes(x=manufacturer, y=hwy)) +
+  geom_boxplot() +
+  labs(title="Fuel economoy for different manufacturers",
+       x="Manufacturer", y="Highway fuel economy (mpg)") +
+  coord_flip() +
+  theme_minimal()
+```
+
+### Histograms
+
+```{r histograms-mpg-1}
+ggplot(mpg, aes(x=hwy, color=class)) +
+  geom_freqpoly(bins=20) +
+  labs(title="Fuel economoy for different car classes",
+       x="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+### Density plots
+
+```{r density-mpg-1}
+ggplot(mpg, aes(x=hwy, color=class, fill=class)) +
+  geom_density(alpha=1/3) +
+  labs(title="Fuel economoy for different car classes",
+       x="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+### Bar plots
+
+```{r bars-mpg-1}
+ggplot(mpg, aes(x=class, fill=as.factor(year))) +
+  geom_bar(position="dodge") +
+  scale_fill_discrete(name="Year") +
+  labs(title="Breakdown of car types by year") +
+  theme_minimal()
+```
+
+```{r bars-mpg-2}
+ggplot(mpg, aes(x=class, fill=as.factor(year))) +
+  geom_bar(position="stack") +
+  scale_fill_discrete(name="Year") +
+  labs(title="Breakdown of car types by year") +
+  theme_minimal()
+```
+
+## Faceting
+
+### Faceting by one variable
+
+```{r facets-mpg-1}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~year) +
+  labs(title="Fuel efficiency vs Engine size by Year",
+       x="Engine size (liters)", y="Highway fuel economy (mpg)") +
+  theme_minimal()
+```
+
+```{r facets-gapminder-1}
+ggplot(gapminder, aes(x=gdpPercap, y=lifeExp)) +
+  geom_point() +
+  geom_smooth() +
+  facet_wrap(~year) +
+  scale_x_log10() +
+  labs(title="Life expectancy increases with GDP per capita",
+       x="GDP per capita (log10 dollars)", y="Life expectancy (years)") +
+  theme_minimal()
+```
+
+### Faceting by two variables
+
+```{r facets-gapminder-2}
+gapminder %>%
+  filter(continent != "Oceania") %>%
+  ggplot(aes(x=gdpPercap, y=lifeExp)) +
+  geom_point() +
+  geom_smooth() +
+  facet_grid(continent~year) +
+  scale_x_log10() +
+  labs(title="Life expectancy increases with GDP per capita",
+       x="GDP per capita (log10 dollars)", y="Life expectancy (years)") +
+  theme_minimal()
+```

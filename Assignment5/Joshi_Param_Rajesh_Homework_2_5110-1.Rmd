@@ -1,0 +1,329 @@
+---
+title: "Joshi_Param_Rajesh_Homework2_5110"
+author: "Param Rajesh Joshi"
+date: "2024-02-08"
+output:
+  pdf_document: default
+  html_document: default
+---
+Problem 1
+Import the dataset into R. Perform any preprocessing (tidying and cleaning) necessary for visualizing the
+data.
+Cite the source for the dataset. Describe the data, the variables, and any preprocessing steps you performed.
+
+Answer :- 
+Problem 1: Importing and Preprocessing Dataset
+
+For this problem, I have chosen the "Heart Disease UCI" dataset from the UCI Machine Learning Repository. This dataset contains various attributes related to heart disease diagnosis.
+
+Source:
+
+Dataset: https://archive.ics.uci.edu/ml/datasets/Heart+Disease
+Creators:
+1)Hungarian Institute of Cardiology. Budapest: Andras Janosi,     M.D.
+2)University Hospital, Zurich, Switzerland: William Steinbrunn,   M.D.
+3)University Hospital, Basel, Switzerland: Matthias Pfisterer,    M.D.
+4)V.A. Medical Center, Long Beach and Cleveland Clinic            Foundation: Robert Detrano, M.D., Ph.D.
+
+Description:
+
+_The dataset contains 303 observations and 14 attributes including both numerical and categorical variables.
+-The target variable is whether or not a patient has heart disease (1 for presence, 0 for absence).
+-Attributes include age, sex, chest pain type, resting blood pressure, serum cholesterol level, fasting blood sugar, resting electrocardiographic results, maximum heart rate achieved, exercise induced angina, ST depression induced by exercise relative to rest, slope of the peak exercise ST segment, number of major vessels colored by fluoroscopy, and thallium heart scan results.
+-Missing values are marked with a question mark '?'.
+
+Preprocessing Steps:
+
+-Load the dataset.
+-Replace '?' with NA for missing values.
+-Check for any duplicate rows and remove them if present.
+-Convert categorical variables to factors if necessary.
+-Explore the data for any outliers or anomalies.
+-Let's start by implementing these preprocessing steps and       examining the data:
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+if (!requireNamespace("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+titanic_data <- read.csv("C:/Users/param/Downloads/train.csv", header = TRUE)
+
+
+# Load required libraries
+library(tidyverse)
+
+
+# Display structure of the dataset
+str(titanic_data)
+
+# Check for missing values
+missing_values <- colSums(is.na(titanic_data))
+missing_values <- missing_values[missing_values > 0]
+cat("Missing values:\n")
+print(missing_values)
+
+# Handle missing values
+# For simplicity, we will remove the "Cabin" column and impute missing values in "Age" and "Embarked" columns
+
+# Remove "Cabin" column
+titanic_data <- titanic_data[, !(names(titanic_data) %in% c("Cabin"))]
+
+# Impute missing values in "Age" with median age
+median_age <- median(titanic_data$Age, na.rm = TRUE)
+titanic_data$Age[is.na(titanic_data$Age)] <- median_age
+
+# Impute missing values in "Embarked" with the most common value
+most_common_embarked <- names(sort(table(titanic_data$Embarked), decreasing = TRUE))[1]
+titanic_data$Embarked[is.na(titanic_data$Embarked)] <- most_common_embarked
+
+# Convert categorical variables to factors
+titanic_data$Survived <- as.factor(titanic_data$Survived)
+titanic_data$Pclass <- as.factor(titanic_data$Pclass)
+titanic_data$Sex <- as.factor(titanic_data$Sex)
+titanic_data$Embarked <- as.factor(titanic_data$Embarked)
+
+```
+Problem 2
+Visualize something interesting to you from the dataset using ggplot2. Comment on what the visualization
+shows and any key conclusions.
+
+Answer:-
+
+
+
+```{r}
+# Load required libraries
+library(ggplot2)
+
+# Visualize age distribution by survival status
+ggplot(titanic_data, aes(x = Age, fill = Survived)) +
+  geom_histogram(binwidth = 5, color = "black", alpha = 0.7) +
+  labs(title = "Age Distribution by Survival Status",
+       x = "Age",
+       y = "Count") +
+  scale_fill_manual(values = c("#FF6961", "#77DD77"),
+                    labels = c("Died", "Survived")) +
+  theme_minimal()
+
+# Load required libraries
+library(ggplot2)
+
+# Create a bar plot for survival status based on sex
+survival_by_sex <- ggplot(titanic_data, aes(x = Sex, fill = Survived)) +
+  geom_bar(position = "dodge", color = "black") +
+  labs(title = "Survival Status by Sex",
+       x = "Sex",
+       y = "Count",
+       fill = "Survived") +
+  theme_minimal()
+
+# Display the plot
+print(survival_by_sex)
+
+
+
+```
+This code creates a histogram of passenger ages, with separate color fills for passengers who survived (green) and those who did not (red). The x-axis represents age, while the y-axis represents the count of passengers. The histogram bins have a width of 5 years.
+
+Key Conclusions:
+
+The age distribution of passengers varies widely, with a peak around young adults.
+There is a notable proportion of children among passengers.
+The visualization suggests that the survival rate for children might be higher compared to other age groups, as indicated by the relatively larger proportion of green bars (indicating survival) in the lower age range.
+Conversely, there is a relatively larger proportion of red bars (indicating non-survival) in the middle age range, suggesting that adults in this age group might have a lower survival rate.
+Overall, this visualization provides insights into the age distribution of passengers aboard the Titanic and how it relates to their survival status.
+
+Problem 3: Tidying NCAA Student-Athlete Academic Performance Dataset
+
+First, let's import the dataset and then create a tidy data frame with the required columns: School ID, School name, Sport code, Sport name, Year, and APR.
+
+```{r}
+library(tidyr)
+library(stringr)
+library(ggplot2)
+
+# Define a function to extract the year from column names
+get_apr_year <- function(column_name) {
+  str_sub(column_name, 10, 13)
+}
+
+# Read the dataset
+apr_data <- read_tsv("C:/Users/param/Downloads/NCAA-D1-APR-2003-14 (1)/NCAA-D1-APR-2003-14/DS0001/26801-0001-Data.tsv", col_types = cols(), na = c("", "-99"))
+
+# Select required columns, rename APR rate columns, gather them into long format, and remove rows with NA values
+tidy_apr_data <- apr_data %>%
+  select(SCL_UNITID, SCL_NAME, SPORT_CODE, SPORT_NAME, starts_with("APR_RATE")) %>%
+  rename_with(get_apr_year, starts_with("APR_RATE")) %>%
+  gather(YEAR, APR, -SCL_UNITID, -SCL_NAME, -SPORT_CODE, -SPORT_NAME) %>%
+  drop_na(APR)  # Remove rows with NA values in the APR column
+
+# Visualize the distribution of APR rates over time using a boxplot
+ggplot(data = tidy_apr_data, aes(x = YEAR, y = APR)) +
+  geom_boxplot() +
+  labs(title = "Distribution of APR Rates Over Time", x = "Year", y = "APR Rate")
+
+
+```
+How does the distribution of APRs
+change year-to-year from 2004 to 2014?
+
+Answer :- 
+Based on the description provided:
+
+1)Q3 (75th Percentile): Remains constant at 1000 across all years, indicating the       upper quartile of the data distribution.
+2)Q2 (Median, 50th Percentile): Shows a slight upward trend from 2004 to 2014,          suggesting a gradual increase in the central tendency of the data over the years.
+3)Q1 (25th Percentile): Increases above 950 as the year progresses from 2004 to 2014,   indicating a rise in the lower quartile of the data distribution.
+4)Interquartile Range (IQR): The distance between Q1 and Q3 represents the middle 50%   of the data. While Q3 remains constant, the increase in Q1 suggests an expanding IQR   over the years, indicating greater variability in the lower half of the data.
+5)Median Position: The median line (Q2) is observed to be closer to Q3 from the year    2011 onwards, indicating a higher concentration of data points towards the upper end   of the distribution in the later years.
+Outliers: There are no outliers observed above Q3 (1000), indicating that there are no          exceptionally high values in the upper tail of the distribution. However,             there are outliers below Q1, suggesting the presence of exceptionally low             values in the lower tail of the distribution.
+
+Based on these observations, we can conclude that there has been a gradual increase in the central tendency of APR rates over the years, accompanied by an expansion in the variability of lower APR rates. Additionally, the concentration of data points towards the upper end of the distribution has increased in more recent years, while outliers are primarily concentrated in the lower range of APR rates. These trends may reflect changes or improvements in academic performance across the observed time period
+
+
+Problem 4
+We would like to compare APRs between men’s and women’s sports. Transform your tidied dataset to remove
+mixed sports, and create a column indicating the gender division of each sport. (You may assume sport codes
+1-18 are men’s, and 19-37 are women’s.)
+Visualize the distributions of APRs over time again, but broken down by gender division. How do the average
+APRs compare between men’s and women’s sports? Does this relationship hold true across each year from
+2004 to 2014?
+
+
+Answer:-
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Define a function to determine the gender division based on sport code
+get_gender_division <- function(sport_code) {
+  ifelse(sport_code >= 1 & sport_code <= 18, "Men's",
+         ifelse(sport_code >= 19 & sport_code <= 37, "Women's", "Mixed"))
+}
+
+# Remove mixed sports and create a new column for gender division
+tidy_gender_data <- tidy_apr_data %>%
+  filter(SPORT_CODE >= 1 & SPORT_CODE <= 37) %>%
+  mutate(Gender_Division = get_gender_division(SPORT_CODE))
+
+# Visualize the distribution of APRs over time, broken down by gender division
+ggplot(data = tidy_gender_data, aes(x = YEAR, y = APR)) +
+  geom_boxplot() +
+  facet_wrap(~ Gender_Division, scales = "free") +
+  labs(title = "Distribution of APRs Over Time by Gender Division", x = "Year", 
+       y = "APR Rate")
+
+
+
+```
+Based on the provided information about the two box plots for APR Rate comparison between men and women:
+
+For Men's APR Rate:
+
+-Q3 (75th Percentile): From 2008 to 2014, Q3 is consistently at 1000, indicating that the upper quartile of the APR Rate distribution for men is at the maximum value. However, before 2008 (2004 to 2007), Q3 is slightly less than 1000.
+-Q1 (25th Percentile): Q1 is always greater than 900, suggesting that even the lower quartile of the APR Rate distribution for men is relatively high.
+-Q2 (Median, 50th Percentile): Q2 shows an increasing trend as the years progress, indicating that the median APR Rate for men is rising over time.
+
+For Women's APR Rate:
+
+-Q3 (75th Percentile): Q3 is consistently at 1000 for all years, indicating that the upper quartile of the APR Rate distribution for women is at the maximum value.
+-Q1 (25th Percentile): Q1 is greater than men's Q1 and is greater than 950, suggesting that even the lower quartile of the APR Rate distribution for women is relatively higher than men's.
+-Q2 (Median, 50th Percentile): From 2008 onwards, Q2 is closer to Q3, and it is greater than men's Q2. This indicates that the median APR Rate for women is high
+er and closer to the upper quartile compared to men's APR Rate.
+
+Based on these observations, we can infer that:
+
+Women generally have higher APR Rates compared to men, as indicated by the
+higher Q1 and Q2 values.
+The median APR Rate for women has been consistently higher than men's, 
+especially from 2008 onwards.
+While men's APR Rates show an increasing trend over the years, women's APR Rates 
+have remained consistently high, with the median APR Rate being closer to the 
+upper quartile.
+
+Overall, this suggests that women's academic performance, as measured by APR 
+Rates, tends to be higher and more consistent compared to men's academic 
+performance over the observed years.
+Also based on the average APRs between men's and women's sports which are 
+obtained by resulting summary statistics stored in the 'summary_stats' dataframe
+we can conclude it suggests that the average APR rate for women's sports is better than men's sports for every year. This implies that, on average, women's sports teams tend to have higher APR rates compared to men's sports teams across the observed years.
+
+
+
+
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(stringr)
+
+# Remove "Men's" and "Women's" prefixes from sport names
+# Remove "Men's" and "Women's" prefixes from sport names
+tidy_gender_data <- tidy_apr_data %>%
+  mutate(Sport_name = str_replace(SPORT_NAME, "^(Men's |Women's )", ""))
+ # Remove either "Men's " or "Women's " from the beginning of the string
+
+# Define a function to determine the gender division based on sport code
+get_gender_division <- function(sport_code) {
+  ifelse(sport_code >= 1 & sport_code <= 18, "Men's",
+         ifelse(sport_code >= 19 & sport_code <= 37, "Women's", "Mixed"))
+}
+
+# Create the Gender_Division column
+tidy_gender_data <- tidy_gender_data %>%
+  mutate(Gender_Division = get_gender_division(SPORT_CODE))
+
+# Visualize the distribution of APR for both men’s and women’s teams for each sport using boxplots
+ggplot(data = tidy_gender_data, aes(y = Sport_name, x = APR, fill = Gender_Division)) +
+  geom_boxplot() +
+  coord_flip() +  # Flip coordinates to have horizontal boxplots
+  labs(title = "Distribution of APRs by Gender and Sport", y = "Sport", x = "APR Rate") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))  # Rotate x-axis labels for better readability
+
+
+
+```
+
+Based on the provided information from the box plot comparing APR Rates across different sports for men's, women's, and mixed teams:
+
+* Similar APR Rates between Men's and Women's Teams:
+
+In sports such as golf, skiing, tennis, fencing, cross country, and gymnastics, both men's and women's teams have similar APR Rates, as indicated by their Q2 values being 1000.
+In ice hockey, golf, and lacrosse, the Q3 and Q2 values for men's and women's teams are almost the same, suggesting similar APR Rates between the genders in these sports.
+Volleyball shows similar characteristics, where both men's and women's teams have the same APR Rates, indicating parity in academic performance.
+
+*Differences in APR Rates between Men's and Women's Teams:
+
+Football, baseball, and wrestling do not have women's box plots, suggesting that APR data is not available for women's teams in these sports.
+Similarly, rowing, field hockey, and softball do not have men's box plots, indicating the absence of APR data for men's teams in these sports.
+
+*Mixed Teams:
+
+In mixed rifle, there is only one mixed plot, and both Q2 and Q3 are 1000, suggesting high APR Rates for mixed teams.
+
+Based on these observations, it can be concluded that in certain sports such as 
+golf, skiing, tennis, fencing, cross country, gymnastics, ice hockey, golf, ]
+lacrosse, and volleyball, men's and women's teams tend to have similar APR Rates. 
+However in certain sports like football,wrestling , baseball , field hockey and softball there is a lot of difference in APR Rates in Men's and Women's , 
+differences also exist across various sports, likely influenced by factors 
+such as team 
+dynamics, academic support, and program management
+
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

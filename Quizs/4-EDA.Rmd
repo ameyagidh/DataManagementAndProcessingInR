@@ -1,0 +1,482 @@
+---
+title: "Exploratory Data Analysis"
+author: "Kylie Ariel Bemis"
+date: "10/1/2021"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Setup
+
+```{r tidyverse, message=FALSE}
+library(tidyverse)
+```
+
+# Introduction to Exploratory Data Analysis
+
+Exploratory Data Analysis is an iterative, cyclical process of informally investigating the variables and relationships between them in a dataset.
+
+- Generate questions about your data.
+
+- Search for answers by transforming and visualising your data.
+
+- Use this to refine your questions and/or generate new questions.
+
+Modeling may be a part of this process, but can also be performed later as part of a more formal approach to answer rigorous scientific questions.
+
+## Questions
+
+- What type of variation occurs within my variables?
+
+- What type of covariation occurs between my variables?
+
+## Definitions
+
+- A variable is a quantity, quality, or property that is measured
+
+- A value is the state of a variable when you measure it
+
+- An observation is a set of measurements made under similar condition
+
+## Example dataset: Diamonds
+
+```{r}
+diamonds
+```
+
+# A note on R functions and code style
+
+Consider the following `ggplot2` code:
+
+```{r eval=FALSE}
+ggplot(data=diamonds,
+       mapping=aes(x=cut,
+                   y=price)) + 
+  geom_boxplot()
+```
+
+```{r eval=FALSE}
+ggplot(diamonds, aes(cut, price)) + geom_boxplot()
+```
+
+Both do the same thing.
+
+## R functions and formal arguments
+
+```{}
+foo(a = 1, b = 2, c = 3)
+```
+
+- All arguments in R functions may be named
+
+- Unnamed arguments will be matched based on their order
+
+- Named arguments may be used in any order
+
+    - Be careful of ordering when mixing named and unnamed arguments!
+
+- You may mix named arguments with unnamed arguments
+
+- Arguments with defaults may be omitted
+
+- Any arguments coming after `...` must be named
+
+## When to name arguments?
+
+This is personal opinion. These are only guidelines!
+
+- The first argument to a function typically need not be named
+
+- Arguments after the first argument should be named
+
+- Arguments that "go together" should both be named or neither should be named
+
+    - E.g. either `aes(x = a, y = b)` or `aes(a, b)`
+
+# Variation
+
+- Variation is the tendency of values of variables to change from measurement to measurement
+
+    - Natural variation
+    
+    - Measurement error
+    
+    - Change between subjects
+    
+    - Change over time
+    
+- Understand by visualizing the distribution of individual variables
+
+## Visualizing distributions: categorical
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x = cut))
+```
+
+----
+
+```{r}
+diamonds <- mutate(diamonds,
+                   color=ordered(color,
+                                 levels=rev(levels(color))))
+ggplot(diamonds) + geom_bar(aes(x = color))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x = clarity))
+```
+
+----
+
+Counts can also be calculated manually with `summarise()` or `count()`
+
+```{r eval=FALSE}
+diamonds %>% group_by(cut) %>% summarise(n=n())
+```
+
+```{r}
+diamonds %>% count(cut)
+```
+
+## Visualizing distributions: continuous
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = depth))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = table))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = price))
+```
+
+----
+
+Try different bin widths.
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = price),
+                                  binwidth = 200)
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = carat),
+                                  binwidth = 0.1)
+```
+
+----
+
+Use different bin widths to investigate patterns.
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = carat),
+                                  binwidth = 0.01)
+```
+
+----
+
+Alternatively, set the number of bins.
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = carat),
+                                  bins = 400)
+```
+
+----
+
+Bins can also be calculated manually with `cut_interval()` or `cut_width()`
+
+```{r}
+diamonds %>% count(cut_interval(carat, n=10))
+```
+
+## Outliers
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = z))
+```
+
+----
+
+Zoom in on y-axis to see the outliers (x = 0 and x > 30).
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x = z)) +
+  coord_cartesian(ylim=c(0, 10))
+```
+
+Note: using `coord_cartesian(ylim=)` only changes the coordinate limits; using `scale_y_continuous(limits=)` or `lims(y=)` also limits the range of data used for the plot.
+
+----
+
+```{r}
+diamonds %>% 
+  select(carat:price, z) %>% 
+  arrange(desc(z))
+```
+
+### Remove outliers?
+
+```{r}
+filter(diamonds, z > 0, z < 30)
+```
+
+### Missing values?
+
+```{r}
+mutate(diamonds, z=ifelse(z > 0 & z < 30, z, NA))
+```
+
+# Covariation
+
+- Covariation is the tendency of values of two or more variables to vary together in a related way
+
+    - Dependency
+    
+    - Confounding
+    
+- Understand by visualizing the relationship between two or more variables
+
+## Between a categorical and a continuous variable
+
+```{r}
+ggplot(diamonds) + geom_boxplot(aes(x=cut,
+                                    y=price))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_freqpoly(aes(x=price, color=cut))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_freqpoly(aes(x=price,
+                                     y=..density..,
+                                     color=cut))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x=price)) +
+  facet_wrap(~ cut)
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_histogram(aes(x=price,
+                                      y=..density..)) +
+  facet_wrap(~ cut)
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=cut)) +
+  facet_wrap(~ cut_number(price, n=4))
+```
+
+
+## Between two continuous variables
+
+```{r}
+ggplot(diamonds) + geom_point(aes(x=carat, y=price))
+```
+
+----
+
+Use transparency to fix overplotting.
+
+```{r}
+ggplot(diamonds) + geom_point(aes(x=carat, y=price), alpha=1/100)
+```
+
+----
+
+
+Use size to fix overplotting.
+
+```{r}
+ggplot(diamonds) + geom_point(aes(x=carat, y=price), size=1/10)
+```
+
+----
+
+Use 2D binning to fix overplotting.
+
+```{r}
+ggplot(diamonds) + geom_bin2d(aes(x=carat, y=price))
+```
+
+----
+
+Use fixed-width binned boxplots to fix overplotting.
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price)) + 
+  geom_boxplot(aes(group=cut_width(carat, 0.2)))
+```
+
+----
+
+Use variable-width binned boxplots to fix overplotting.
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price)) + 
+  geom_boxplot(aes(group=cut_number(carat, 10)))
+```
+
+## Between two categorical variables
+
+```{r}
+ggplot(diamonds) + geom_count(aes(x=cut, y=color))
+```
+
+----
+
+```{r}
+diamonds %>% count(color, cut) %>%
+  ggplot(aes(x=cut, y=color)) + geom_tile(aes(fill=n))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=cut, fill=color))
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=cut, fill=color),
+                            position="dodge")
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=cut, y=..prop..,
+                                fill=color, group=color),
+                            position="dodge")
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=color)) +
+  facet_wrap(~ cut)
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=color, y=..prop..,
+                                group=cut)) +
+  facet_wrap(~ cut)
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=cut)) +
+  facet_wrap(~ color)
+```
+
+----
+
+```{r}
+ggplot(diamonds) + geom_bar(aes(x=cut, y=..prop..,
+                                group=color)) +
+  facet_wrap(~ color)
+```
+
+## Between three or more variables
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price, color=clarity)) + 
+  geom_point()
+```
+
+----
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price, color=clarity)) + 
+  geom_point(alpha=1/100) + 
+  geom_smooth()
+```
+
+----
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price, color=cut)) + 
+  geom_point(size=1/10) + 
+  geom_smooth()
+```
+
+## More "Fair" cut diamonds are larger
+
+```{r}
+ggplot(diamonds) +
+  geom_boxplot(aes(x=cut, y=carat))
+```
+
+# Telling a story
+
+```{r}
+ggplot(diamonds) + geom_boxplot(aes(x = cut, y=price, fill=cut)) +
+  scale_y_log10() +
+  labs(x="Cut", y="Price (US$)",
+       title="Higher quality cuts of diamonds tend to be cheaper") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(diamonds) + geom_boxplot(aes(x = cut, y=carat, fill=cut)) +
+  scale_y_log10() +
+  labs(x="Cut", y="Carat",
+       title="Higher quality cuts of diamonds tend to be smaller") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price)) + 
+  geom_point(size=1/10) + 
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_smooth() +
+  labs(x="Carat", y="Price (US$)",
+       title="Larger diamonds tend to be more expensive") +
+  theme_minimal()
+```
+
+```{r}
+ggplot(diamonds, aes(x=carat, y=price, color=cut)) + 
+  geom_point(size=1/10) + 
+  scale_x_log10() +
+  scale_y_log10() +
+  geom_smooth() +
+  labs(x="Carat", y="Price (US$)",
+       title="For same-sized diamonds, higher quality cuts are more expensive") +
+  theme_minimal()
+```

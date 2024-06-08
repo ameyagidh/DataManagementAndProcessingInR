@@ -1,0 +1,410 @@
+---
+title: "Strings, factors, and date-times"
+author: "Kylie Ariel Bemis"
+date: "9/21/2020"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+```
+
+# Data wrangling, etc.
+
+- Strings with `stringr`
+
+- Factors with `forcats`
+
+- Dates and times with `lubridate`
+
+# Strings
+
+```{r}
+string1 <- "This is a string"
+string2 <- "Include a 'quote' with a single quote"
+string3 <- 'Or include a "quote" the other way around'
+string4 <- "Here is a string\nwith a newline"
+```
+
+## Printing strings
+
+```{r}
+string1
+string2
+string3
+string4
+```
+
+---
+
+```{r}
+cat(string1)
+cat(string2)
+cat(string3)
+cat(string4)
+```
+
+## Character vectors
+
+```{r}
+c("this", "is", "a", "vector", "of", "strings")
+```
+
+## Strings with `stringr`
+
+The `string` package is a non-default part of the tidyverse. You only need to load it when you need to process strings.
+
+The `stringr` package provides convenience functions for string processing. Most of its functionality can be accomplished in base R as well, but it provides a more consistent (and sometimes faster) interface, following typical tidyverse conventions (e.g., the data is always the first argument).
+
+All `stringr` functions are prefixed with `str_`.
+
+```{r}
+library(stringr)
+```
+
+## String length
+
+```{r}
+string <- c("abc", "123", "hello world", NA, "\u03c0\u03c3")
+```
+
+Get the length of the character vector.
+
+```{r}
+length(string)
+```
+
+Get the length of the strings in the character vector.
+
+```{r}
+str_length(string)
+```
+
+Get the character length of the strings in the character vector.
+
+```{r}
+nchar(string)
+```
+
+Get the byte length of the strings in the character vector.
+
+```{r}
+nchar(string, type="bytes")
+```
+
+U200B is the "zero-width space" unicode character.
+
+```{r}
+nchar("\u200b")
+nchar("\u200b", type="bytes")
+nchar("\u200b", type="width")
+```
+
+## Concatenating strings
+
+Using `stringr`:
+
+```{r}
+str_c("x", "y")
+str_c("x", "y", sep=", ")
+str_c(c("x", "y"), c("1", "2"), sep=" = ")
+str_c(c("x", "y"), c("1", "2"), sep=" = ", collapse=", ")
+```
+
+---
+
+Using base R:
+
+```{r}
+paste0("x", "y")
+paste("x", "y", sep=", ")
+paste(c("x", "y"), c("1", "2"), sep=" = ")
+paste(c("x", "y"), c("1", "2"), sep=" = ", collapse=", ")
+```
+
+## Substrings
+
+```{r}
+string <- c("CAT_F", "CAT_F", "DOG_M")
+str_sub(string, 1, 3)
+str_sub(string, -2, -1)
+```
+
+## Locating positions and splitting strings
+
+```{r}
+string <- c("CAT_F", "CAT_F", "DOG_M")
+str_locate(string, "_")
+str_split(string, "_")
+```
+
+## Detecting patterns
+
+```{r}
+string <- c("hello", "hi", "hey", "well met")
+str_detect(string, "h")
+```
+
+## Detecting patterns
+
+```{r results="hide"}
+library(tidyverse)
+words_df <- tibble(i=seq_along(words), words=words)
+```
+
+```{r}
+words_df
+```
+
+Find words that start with "b".
+
+```{r}
+filter(words_df, str_detect(words, "^b"))
+```
+
+## Padding with white space
+
+```{r}
+words_df2 <- mutate(words_df, words=str_pad(words, 30, side="both"))
+head(words_df2$words)
+```
+
+## Trimming white space
+
+```{r}
+words_df3 <- mutate(words_df2, words=str_trim(words))
+head(words_df3$words)
+```
+
+## Strings with `stringi`
+
+The `stringr` package exposes a small subset of the functionality of the `stringi` package, which is a much more complex package for working with strings in R using efficient C++ code under-the-hood.
+
+If `stringr` doesn't provide the functionality you need in string processing, check out the functions in the `stringi` package.
+
+# Factors with `forcats`
+
+The `forcats` package is a non-default part of the tidyverse for working with **cat**egorical variables. It provides convenience functions for working with `factor`s, and is primarily useful for robustly and conveniently changing the levels of factors.
+
+All functions in `forcats` are prefixed with `fct_`.
+
+```{r}
+library(forcats)
+```
+
+(Unfortunately, `forcats` provides no additional functionality for working with cats in R. For that, you want https://github.com/Gibbsdavidl/CatterPlots.)
+
+## Factors versus character vectors
+
+As we have discussed before, character vectors and factors look similar in R, and some base R functions will silently convert strings to factors.
+
+Internally, factors are stored as integers and character vectors are stored as strings.
+
+It is important to know whether you are working with a factor or a character vector, and which are useful for what purposes.
+
+- Are you representing text data or a categorical variable?
+
+- Do you need to do any string processing?
+
+- How many levels will it have?
+
+Typically, text data should be represented as a character vector and categorical variables should be represented as factors.
+
+## Creating factors
+
+```{r}
+month_levels <- c(
+  "Jan", "Feb", "Mar", "Apr", "May", "Jun", 
+  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+)
+factor(c("Sep", "Apr", "Jun", "Nov"), levels=month_levels)
+factor(c("Sep", "Apr", "June", "Nov"), levels=month_levels)
+ordered(c("Sep", "Apr", "Jun", "Nov"), levels=month_levels)
+```
+
+---
+
+```{r}
+fct <- c("C", "B", "A")
+factor(fct)
+as.factor(fct)
+factor(fct, levels=unique(fct))
+factor(fct) %>% fct_inorder()
+```
+
+## Releveling factors
+
+```{r}
+fct <- factor(fct)
+fct
+relevel(fct, "C")
+fct_relevel(fct, "C")
+fct_relevel(fct, c("C", "B", "A"))
+```
+
+## Recoding factors
+
+```{r}
+dplyr::recode(fct, A="X", B="Y", C="Z")
+fct_recode(fct, X="A", Y="B", Z="C")
+fct_recode(fct, AB="A", AB="B")
+fct_collapse(fct, AB=c("A", "B"))
+```
+
+# Dates and times with `lubridate`
+
+Dates and times are notoriously difficult. You have to consider multiple components (year, month, day, hour, minute, second, etc.) as well as additional information like time zones. The fact that some years and months are different lengths make dates and times even more of a headache.
+
+The `lubridate` package from the tidyverse provides many convenience functions which make working with dates and date-times much easier.
+
+```{r results="hide"}
+library(lubridate)
+```
+
+## Get current date or date-time
+
+```{r}
+today()
+now()
+```
+
+## Parsing dates
+
+```{r}
+ymd("2018-01-31")
+mdy("January 31st, 2018")
+dmy("31-Jan-2018")
+```
+
+## Parsing date-times
+
+```{r}
+ymd_hms("2018-01-31 20:11:59")
+mdy_hm("01/31/2018 08:01")
+mdy_hm("01/31/2018 08:01", tz="EST")
+```
+
+## Accessing date-time components
+
+```{r}
+datetime <- ymd_hms("2018-02-09 12:34:56")
+year(datetime)
+month(datetime)
+mday(datetime)
+yday(datetime)
+wday(datetime)
+```
+
+---
+
+```{r}
+month(datetime, label=TRUE)
+month(datetime, label=TRUE, abbr=FALSE)
+```
+
+---
+
+```{r}
+wday(datetime, label=TRUE)
+wday(datetime, label=TRUE, abbr=FALSE)
+```
+
+## Creating dates from components
+
+```{r}
+library(nycflights13)
+flights %>% 
+  select(year, month, day, hour, minute)
+```
+
+---
+
+```{r}
+flights %>% 
+  select(year, month, day, hour, minute) %>% 
+  mutate(departure = make_datetime(year, month, day, hour, minute))
+```
+
+---
+
+```{r}
+make_datetime_100 <- function(year, month, day, time) {
+  make_datetime(year, month, day, time %/% 100, time %% 100)
+}
+
+flights_dt <- flights %>% 
+  filter(!is.na(dep_time), !is.na(arr_time)) %>% 
+  mutate(
+    dep_time = make_datetime_100(year, month, day, dep_time),
+    arr_time = make_datetime_100(year, month, day, arr_time),
+    sched_dep_time = make_datetime_100(year, month, day, sched_dep_time),
+    sched_arr_time = make_datetime_100(year, month, day, sched_arr_time)
+  ) %>% 
+  select(origin, dest, ends_with("delay"), ends_with("time"))
+```
+
+---
+
+```{r}
+flights_dt
+```
+
+---
+
+```{r}
+flights_dt %>% 
+  ggplot(aes(dep_time)) + 
+  geom_freqpoly(binwidth = 24*60*60)
+```
+
+---
+
+```{r}
+flights_dt %>% 
+  mutate(wday = wday(dep_time, label = TRUE)) %>% 
+  ggplot(aes(x = wday)) +
+    geom_bar()
+```
+
+# For cats
+
+Did you ever wish you could make scatter plots with cat shaped points? Now you can!
+
+```{r eval=FALSE}
+library(remotes)
+install_github("Gibbsdavidl/CatterPlots")
+```
+
+```{r cats}
+library(CatterPlots)
+x <- -10:10
+y <- -x^2 + 10
+purr <- catplot(xs=x, ys=y, cat=3, catcolor='#000000FF')
+cats(purr, -x, -y, cat=4, catcolor='#FF0000')
+```
+
+---
+
+```{r morecats}
+# for more fun ...
+meow <- multicat(xs=x, ys=y, cat=c(1,2,3),
+                 catcolor=list('#33FCFF','#FF0000'),
+                 canvas=c(-0.1,1.1, -0.1, 1.1))
+morecats(meow, x, 10*sin(x)+40, size=0.05, cat=c(4,5,6),
+         catcolor=list('#0495EE','#EE7504'), type="line")
+```
+
+---
+
+```{r randcats}
+# random cats
+meow <- multicat(xs=x, ys=rnorm(21),
+                 cat=c(1,2,3,4,5,6,7,8,9,10),
+                 canvas=c(-0.1,1.1, -0.1, 1.1),
+                 xlab="some cats", ylab="other cats",
+                 main="Random Cats")
+```
+

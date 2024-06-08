@@ -1,0 +1,346 @@
+---
+title: "DS5110 Homework 6"
+author: "Ameya Santosh Gidh"
+date: "`r Sys.Date()`"
+output: pdf_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Problem 1
+
+```{r}
+# Suppress startup messages from packages
+suppressPackageStartupMessages(library(tidyverse))
+
+# Load necessary libraries
+library(readr)      # For reading data
+library(dplyr)      # For data manipulation
+library(ggplot2)    # For data visualization
+library(tidyverse)  # Comprehensive data manipulation and visualization package
+library(glmnet)     # For fitting Lasso and Elastic-Net regularized generalized linear models
+library(stringr)    # For string manipulation
+library(tokenizers) # For tokenization
+library(lubridate)  # For working with dates
+library(tidytext)   # For text mining with tidy data principles
+
+# Check if tidyverse package is installed, if not, install it
+if (!requireNamespace("tidyverse", quietly = TRUE)) {
+  install.packages("tidyverse")
+}
+```
+
+Answer:-
+```{r}
+
+# Define file directory and path
+dir <- "./"
+path <- file.path(dir, "twitter", "realDonaldTrump-20201106.csv")
+trump_data <- read_csv(path, col_types=cols(id=col_character()))
+
+# Load stop words
+data(stop_words)
+
+# Define additional stop words
+extra <- c("realdonaldtrump", "donaldtrump", "donald", "trump", "rt")
+
+# Process tweets
+tidy <- trump_data %>%
+  filter(!isRetweet, str_detect(text, "[:space:]")) %>%
+  select(id, text, retweets, date) %>%
+  unnest_tokens("word", text, token = "regex") %>%
+  mutate(word=str_replace(word, "ˆ#", "HASHTAG"),
+         word=str_replace(word, "ˆ@", "AT"),
+         word=str_replace_all(word, "[[:punct:]]+", ""),
+         word=str_replace(word, "ˆHASHTAG", "#"),
+         word=str_replace(word, "ˆAT", "@")) %>%
+  anti_join(stop_words, by = "word", copy = TRUE) %>%
+  filter(
+    !word %in% extra,
+    !str_detect(word, "@"),
+    !str_detect(word, "amp"),
+    !str_detect(word, "http"),
+    str_length(word) > 0L
+  )
+
+# Visualize top 20 most common terms
+top_20_terms <- tidy %>%
+  count(word) %>%
+  top_n(20)
+
+# Plot
+ggplot(top_20_terms, aes(x = reorder(word, n), y = n)) +
+  geom_col() +
+  coord_flip() +
+  labs(x = "Term", y = "Count", title = "Top terms in Donald Trump's tweets") +
+  theme_minimal()
+
+
+```
+The image displays a horizontal bar chart titled "Top terms in Donald Trump's tweets." The terms are listed on the y-axis, and the frequency of each term's usage is represented by the length of the horizontal bars along the x-axis, which measures the count of each term. The scale on the x-axis goes from 0 to 3000. The bars are coloured in varying shades of grey.
+
+Some of the most frequently used terms, starting with the highest count, are "president," "people," "country," "america," and "time." Other terms that appear further down the list include "news," "obama," "vote," "democrats," "run," "job," "fake," "love," "china," "win," "american," "bad," "true," and "media." The term "president" has the longest bar, indicating it is the term with the highest count in the dataset.
+
+Problem 2
+Visualize the top 20 most common terms in Donald Trump’s tweets for each year from 2015-2020, and
+comment on the visualization.
+
+Answer:-
+
+```{r}
+
+library(lubridate)
+library(ggplot2)
+library(viridis)
+
+# Assuming trump_tidy is already processed and in the correct format
+
+# Top 20 terms for each year
+top_20_terms <- tidy %>%
+  mutate(year = as.integer(format(date, "%Y"))) %>%
+  filter(year >= 2015 & year <= 2020) %>%
+  count(word, year) %>%
+  group_by(year) %>%
+  top_n(20) %>%
+  ungroup()
+
+# Identify terms that start with a hashtag
+hashtag_terms <- top_20_terms %>%
+  filter(stringr::str_detect(word, "^#"))
+
+# Create a column for labels with hashtags for terms starting with a hashtag
+top_20_terms$label <- top_20_terms$word
+top_20_terms$label[hashtag_terms$word] <- paste0("#", hashtag_terms$word)
+
+# Plotting top 10 terms
+ggplot(top_20_terms, aes(x = reorder_within(label, n, year), y = n, fill = factor(year))) +
+  geom_col(color = "black", size = 0.25) +
+  coord_flip() +
+  scale_x_reordered() +
+  scale_y_continuous(labels = NULL) +  
+  scale_fill_viridis(discrete = TRUE, option = "magma") +
+  facet_wrap(~year, scales = "free", ncol = 2) +
+  labs(x = "Term", y = "Count", title = "Top 20 Common Terms in Trump's Tweets by Year") +
+  theme_minimal() +
+  theme(
+    text = element_text(size = 6),
+    axis.title = element_text(face = "bold", size = 20),panel.spacing = unit(10, "pt"),
+    plot.title = element_text(face = "bold", size = 14)
+  )
+
+
+```
+
+The images displays  bar charts titled "Top 20 Common Terms from Trump's Tweets for Each Year" with data from 2015 to 2020. This chart represents the frequency of terms in Donald Trump's tweets.The bars are horizontal, with the length of each bar corresponding to the count of the term for that particular year. 
+
+For 2015, the terms are mostly related to Trump's involvement in the television show "The Apprentice" and his presidential campaign, with terms like "apprentice," "celebrityapprentice," and "makeamericagreatagain."
+
+In 2016, the focus shifts to his presidential campaign with terms such as "trump2016," "makeamericagreatagain," and "cruz," likely referring to his then-opponent Ted Cruz.
+
+The terms from 2017 highlight political issues and events of the time, such as "fake news," "tax reform," and "obamacare."
+
+In 2018, the terms reflect political controversies and events, with "witch hunt," "mueller," and "collusion" appearing prominently.
+
+For 2019, the terms are centered around political opposition and impeachment topics like "impeachment," "mueller," and "whistleblower."
+
+Finally, in 2020, the terms are dominated by the COVID-19 pandemic and the presidential election, with words like "coronavirus," "impeachment," "biden," and "covid."
+
+
+
+Problem 3 :
+Treat year as a “document” to calculate the tf-idf for each term and year. Visualize the top 20 most
+characteristic terms in Donald Trump’s tweets for each year from 2015-2020, and comment on the visualization.
+
+Answer :
+```{r}
+
+library(tidytext)
+library(dplyr)
+library(ggplot2)
+
+# Assuming trump_tidy is already processed and in the correct format
+
+# Create year variable from date
+tidy <- tidy %>%
+  mutate(year = lubridate::year(date))
+
+# Calculate TF-IDF for each term and year
+trump_year_wise_tweets <- tidy %>%
+  filter(year >= 2015 & year <= 2020) %>%
+  count(word, year) %>%
+  bind_tf_idf(word, year, n) %>%
+  arrange(desc(tf_idf))
+
+# Visualize the top 20 characteristic terms for each year
+top_terms_by_year <- trump_year_wise_tweets %>%
+  group_by(year) %>%
+  top_n(20, wt = tf_idf)
+
+# Plotting
+ggplot(top_terms_by_year, aes(x = reorder_within(word, tf_idf, year), y = tf_idf, fill = factor(year))) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  scale_x_reordered() +
+  scale_y_continuous(labels = NULL) +
+  scale_fill_viridis(discrete = TRUE) +  # Change palette to Viridis
+  facet_wrap(~year, scales = "free", ncol = 2) +
+  labs(x = "Term", y = "tf-idf",
+       title = "Top 20 Characteristic Terms from Trump's Tweets for Each Year") +
+  theme(text = element_text(size = 6),
+    axis.title = element_text(face = "bold", size = 20),panel.spacing = unit(10, "pt"),
+    plot.title = element_text(face = "bold", size = 12)  )
+
+```
+
+This image is a bar chart displaying the "Top 20 Characteristic Terms from Trump's Tweets for Each Year"  from 2015 to 2020, with each year represented by bars in different colours. The bars are horizontal, with the length of each bar corresponding to the term frequency-inverse document frequency (tf-idf) score of the term for that particular year.
+
+In 2015, the chart is dominated by terms associated with Donald Trump's television presence and early campaign efforts, such as "apprentice," "trump2016," and "makeamericagreatagain."
+
+For 2016, the terms largely reflect the presidential campaign, featuring "trump2016," "makeamericagreatagain," and mentions of other political figures like "cruz" and "rubio."
+
+The 2017 terms pivot towards political and legislative issues, with "fake news," "tax reform," and "obamacare" being prominent.
+
+In 2018, the focus is on political controversies, including the "witch hunt," "mueller," and "collusion."
+
+The 2019 terms centre around the impeachment proceedings and political adversaries, with words like "impeachment," "mueller," and "whistleblower."
+
+Lastly, the 2020 terms are heavily influenced by the COVID-19 pandemic and political events, with "coronavirus," "impeachment," and "biden" being key terms.
+
+
+Problem 4
+Filter the data to include only tweets from 2016-2020, and then use the glmnet package fit sparse regression
+models to predict the number of retweets that a tweet will get. Use cross-validation to select the sparsity
+parameter lambda. Report the selected value of lambda and the number of non-zero coefficients in the
+regression model. (You do not need to partition the dataset beforehand or report the error.)
+Hint: Use the rownames() and colnames() of the sparse matrix to extract the terms and IDs.
+
+Answer:- 
+
+```{r}
+library(tidytext)
+library(dplyr)
+
+library(glmnet)
+
+# Filter the data to include only tweets from 2016-2020
+filtered_data <- tidy %>%
+  filter(year >= 2016 & year <= 2020)
+
+#First we filter the data and cast it to a sparse matrix.
+# Create a document-term matrix
+dtm <- filtered_data %>%
+  count(id, word) %>%
+  cast_sparse(id, word, n)
+
+dim(dtm)
+# Extract the tweet IDs to get the target variable (# of retweets)
+ids <- tibble(id=rownames(dtm))
+ids <- left_join(ids, trump_data)
+
+
+retweets <- ids$retweets
+
+set.seed(2020)
+fit_cv <- cv.glmnet(dtm, retweets)
+# Report the selected value of lambda
+plot(fit_cv)
+fit_cv
+
+# Extract the selected value of lambda
+selected_lambda <- fit_cv$lambda.min
+cat("Selected value of lambda:", selected_lambda, "\n")
+
+# Get the number of non-zero coefficients
+coefficients <- coef(fit_cv, s = selected_lambda)
+non_zero_coefficients <- sum(coefficients != 0)
+cat("Number of non-zero coefficients:", non_zero_coefficients, "\n")
+
+```
+Based on the output provided:
+
+The model with the lowest Mean-Squared Error (MSE) selects lambda = 181.4, and it incorporates 719 terms.
+Furthermore, within one standard error of the best model’s MSE, the most sparse model selects lambda = 637.0, utilizing only 50 terms.
+
+
+Problem 5
+Extract the coefficients from the best model from Problem 4, and visualize the terms with the strongest
+positive relationship with the number of re-tweets. Comment on the visualization.
+
+Answer:- 
+
+
+```{r}
+# Extract coefficients from the best model
+coefficients <- coef(fit_cv, s = "lambda.min")
+
+# Convert coefficients to a tibble
+coefficients <- tibble(word = rownames(coefficients), coef = as.numeric(coefficients))
+
+# Select the top 15 coefficients
+top_15_terms <- coefficients %>%
+  top_n(15)
+
+# Plot the top 15 terms with their coefficients
+library(ggplot2)
+ggplot(top_15_terms, aes(x = reorder(word, coef), y = coef/10)) +
+  geom_col(fill = "skyblue", width = 0.5) +
+  coord_flip() +
+  labs(x = "Term", y = "Regression Coefficient",
+       title = "Top 15 Terms with Regression Coefficients") +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+
+
+```
+
+
+Answer:-
+The top term associated with a high number of retweets appears to be "FNN," which likely refers to Fox News Network. Interestingly, the term "covfefe," a Trump-specific phrase, also shows a strong correlation with a high number of retweets.
+
+Let's gain insight into the context behind some of these terms by searching for them within the original tweets.
+```{r}
+trump2016 <- trump_data %>%
+filter(year(date) >= 2016) %>%
+mutate(text=str_to_lower(text))
+trump2016 %>%
+filter(str_detect(text, "#fnn")) %>%
+select(date, text, retweets)
+
+
+trump2016 %>%
+filter(str_detect(text, "covfefe")) %>%
+select(date, text, retweets)
+
+trump2016 %>%
+filter(str_detect(text, "insult")) %>%
+select(date, text, retweets)
+
+trump2016 %>%
+filter(str_detect(text, "quarantine")) %>%
+select(date, text, retweets)
+
+```
+## R Markdown
+
+This is an R Markdown document. Markdown is a simple formatting syntax for authoring HTML, PDF, and MS Word documents. For more details on using R Markdown see <http://rmarkdown.rstudio.com>.
+
+When you click the **Knit** button a document will be generated that includes both content as well as the output of any embedded R code chunks within the document. You can embed an R code chunk like this:
+
+```{r}
+warnings()
+
+```
+
+## Including Plots
+
+You can also embed plots, for example:
+
+```{r pressure, echo=FALSE}
+plot(pressure)
+```
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.

@@ -1,0 +1,804 @@
+---
+title: "Data transformation"
+author: "Kylie Ariel Bemis"
+date: "9/21/2020"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data transformation
+
+In order to visualize and (later) model data, we typically need to perform data transformation.
+
+- Subset data by rows (observations) or columns (variables)
+
+- Reorder the rows or columns of the data
+
+- Calculate new variables from existing variables
+
+- Calculate summary statistics of variables
+
+One or more of these steps are often necessary to appropriately visualize or model a dataset.
+
+----
+
+Below, we will discuss data transformations on __tidy__ data. That is, data that is already in a form where:
+
+- Each variable has its own column
+
+- Each observation has its own row
+
+- Each value has its own cell
+
+
+# `dplyr`: A grammar of data manipulation
+
+Provides a powerful, flexible "grammar" of data manopulation.
+
+- Identify the most important data manipulation verbs and make them easy to use from R
+
+- Provide fast performance for in-memory data with under-the-hood C++ implementation
+
+- Use the same interface whether the data is stored in-memory or in a database on disk
+
+Part of the "tidyverse" with `ggplot2` and others.
+
+## Why use `dplyr`?
+
+The `dplyr` package (mostly) doesn't implement any functionality that is missing or impossible to perform in base R.
+
+However, code written with `dplyr`:
+
+- Can be more expressive, concise, and human-readable
+
+- Can be more explicit in your intentions for data manipulation
+
+- Can be faster (sometimes) due to C++ implementation
+
+- Can also be used with databases on disk
+
+- Integrates with other `tidyverse` functions and packages
+
+I will also show you how to perform the same functionality using base R.
+
+## Review of subsetting `data.frame`s in R
+
+- Simplifying (returns a vector)
+
+    - Access individual columns using `df$name`
+
+    - Access individual columns using `df[["name"]]`
+
+- Preserving (returns a `data.frame`)
+
+    - Subset rows using `df[i,]`
+
+    - Subset rows using `df[c("name1", "name2")",]`
+
+    - Subset columns using `df[,j]`
+
+    - Subset columns using `df[,c("name1", "name2")]`
+
+- You can subset both rows and columns at the same time
+
+- Subsetting by a single column is always simplifying for `data.frame`s
+
+    - Change this behavior with `drop = FALSE`
+
+---
+
+```{r}
+df <- data.frame(x=c(1L, 2L, 5L, 9L),
+                 y=c('a', 'b', 'c', 'd'),
+                 `z !`=c(1.11, 2.22, 3.33, 4.0),
+                 row.names=c("Jo", "Ha", "Q", "Final"),
+                 check.names=FALSE,
+                 stringsAsFactors=FALSE)
+df
+```
+
+---
+
+```{r}
+df$x
+df[["y"]]
+```
+
+---
+
+```{r}
+df$`z !`
+df[["z !"]]
+```
+
+---
+
+```{r}
+df[1:3,]
+df[c("Jo", "Ha", "Q"),]
+```
+
+---
+
+```{r}
+df[,2:3]
+df[,c("y","z !")]
+```
+
+---
+
+```{r}
+df[,"z !"]
+df[,"z !",drop=FALSE]
+```
+
+---
+  
+```{r}
+df[1:3, c("y", "z !")]
+```
+
+## Verbs in `dplyr`
+
+Provides most commonly used data manipulation actions.
+
+- `filter()` subsets data by rows/observations
+
+- `arrange()` reorders data by rows/observations
+
+- `select()` subsets data by columns/variables
+
+- `mutate()` creates new columns/variables
+
+- `summarise()` calculates summary statistics
+
+Each can be applied over levels of a categorical variable with `group_by()`.
+
+Each takes a `data.frame` as the first argument and outputs a new `data.frame`.
+
+# Loading `dplyr`
+
+```{r}
+library(dplyr)
+```
+
+## Name masking and namespaces in R
+
+Several functions are "masked" when `dplyr` is loaded.
+
+They can still be accessed by fully qualifying their names:
+
+- `stats::filter()`
+
+- `stats::lag()`
+
+----
+
+Each package in R creates its own namespace.
+
+R finds functions based on the order packages are loaded.
+
+You can see this search path with `search()`:
+
+```{r}
+search()
+```
+
+----
+
+When name conflicts occur, a warning about masked names is given.
+
+You can always use `package::function()` to find the right one.
+
+## Example dataset
+
+Today we will explore the `flights` dataset also used in the homework and the **R4DS** book.
+
+```{r}
+library(nycflights13)
+flights
+```
+
+Note that `flights` is actually a `tibble`, which is simply a special type of `data.frame`.
+
+I will use `data.frame` to refer to both interchangeably.
+
+# Subsetting rows with `filter()`
+
+Get only flights from October.
+
+In base R:
+
+```{r eval=FALSE}
+flights[flights$month == 10,]
+```
+
+In `dplyr`:
+
+```{r}
+filter(flights, month == 10)
+```
+
+## Why `flights$month` vs `month`?
+
+Like `ggplot2`, `dplyr` uses non-standard evaluation to facilitate ease of interactive programming.
+
+In base R:
+
+```{r, eval=FALSE}
+flights[flights$month == 10,]
+```
+
+In `dplyr`:
+
+```{r, eval=FALSE}
+filter(flights, month == 10)
+```
+
+This approach is useful for interactive data analysis, but can cause problems when used within user-defined functions.
+
+We may discuss more on non-standard evaluation later in the course if there is interest.
+
+## Anatomy of `filter()`
+
+`filter(data, condition1, condition2, condition3, ...)`
+
+- The first argument is the data
+
+- The following arguments are vectorized logical expressions
+
+- Additional arguments are joined by `&` (AND)
+
+- Rows that evaluate to `TRUE` are kept
+
+- Rows that evluate to `FALSE` or `NA` are dropped
+
+## Review of logical operators in R
+
+- Standard comparison operators: `==`, `!=`, `>`, `<`, `>=`, `<=`.
+
+    - Remember to use `==` instead of `=` when doing comparisons
+    
+- `dplyr::near()` for checking floating point equality
+
+- `dplyr::between()` is a synonym for `a <= x & x <= b`
+
+- `&`, `|`, and `!` are vectorized AND, OR, and NOT
+
+    - Non-vectorized versions (for `if` statements) are `&&` and `||`
+    
+- `%in%` checks if an element exists in a set
+
+    - E.g., `x %in% c(a,b)` is equivalent to `x == a | x == b`
+
+- `is.na` to check for missing values
+
+    - Remember that `NA == NA` evaluates to `NA`
+
+---
+
+Get only flights from Alaska Airlines or Hawaiian Airlines.
+
+In base R:
+
+```{r, eval=FALSE}
+flights[flights$carrier %in% c("AS", "HA"),]
+```
+
+In `dplyr`:
+
+```{r}
+filter(flights, carrier %in% c("AS", "HA"))
+```
+
+---
+
+Get only flights from Alaska Airlines or Hawaiian Airlines.
+
+In base R:
+
+```{r, eval=FALSE}
+flights[flights$carrier == "AS" | flights$carrier == "HA",]
+```
+
+In `dplyr`:
+
+```{r}
+filter(flights, carrier == "AS" | carrier == "HA")
+```
+
+---
+
+Get only flights between Honolulu and JFK.
+
+In base R:
+
+```{r, eval=FALSE}
+flights[flights$origin == "JFK" & flights$dest == "HNL",]
+```
+
+In `dplyr`:
+
+```{r}
+filter(flights, origin == "JFK" & dest == "HNL")
+```
+
+---
+
+Get only flights between Honolulu and JFK.
+
+In base R:
+
+```{r, eval=FALSE}
+flights[flights$origin == "JFK" & flights$dest == "HNL",]
+```
+
+In `dplyr`:
+
+```{r}
+filter(flights, origin == "JFK", dest == "HNL")
+```
+
+# Reordering rows with `arrange()`
+
+Sort by flights that departed with least delay (most ahead of schedule):
+
+In base R:
+
+```{r eval=FALSE}
+flights[order(flights$dep_delay),]
+```
+
+In `dplyr`:
+
+```{r}
+arrange(flights, dep_delay)
+```
+
+## Use `desc()` to sort by a variable in descending order
+
+Sort by flights that departed with most delay:
+
+In base R:
+
+```{r eval=FALSE}
+flights[order(flights$dep_delay, decreasing=TRUE),]
+```
+
+In `dplyr`:
+
+```{r}
+arrange(flights, desc(dep_delay))
+```
+
+# Selecting columns with `select()`
+
+Keep only date and delay columns.
+
+In base R:
+
+```{r eval=FALSE}
+flights[,c("year","month","day","dep_delay","arr_delay")]
+```
+
+In `dplyr`:
+
+```{r}
+select(flights, year, month, day, dep_delay, arr_delay)
+```
+
+---
+
+Keep first 9 columns (`year` through `arr_delay`).
+
+In base R:
+
+```{r eval=FALSE}
+flights[,1:9]
+```
+
+In `dplyr`:
+
+```{r}
+select(flights, 1:9)
+```
+
+---
+
+Keep first 9 columns (`year` through `arr_delay`) by name.
+
+In base R:
+
+```{r eval=FALSE}
+flights[,which(names(flights)=="year"):
+          which(names(flights)=="arr_delay")]
+```
+
+In `dplyr`:
+
+```{r}
+select(flights, year:arr_delay)
+```
+
+---
+
+Keep all columns except tail number and flight number.
+
+In base R:
+
+```{r eval=FALSE}
+flights[,-c(which(names(flights)=="tailnum"),
+          which(names(flights)=="flight"))]
+```
+
+In `dplyr`:
+
+```{r}
+select(flights, -tailnum, -flight)
+```
+
+## Useful functions for selecting column/variable names
+
+- `dplyr::starts_with("arr")`
+
+    - matches column names that begin with "arr"
+
+- `dplyr::ends_with("time")`
+
+    - matches column names that end with "time"
+
+- `dplyr::contains("dep")`
+
+    - matches column names that contain "dep"
+
+- `dplyr::num_range("x", 1:3)`
+
+    - matches "x1", "x2", and "x3"
+
+---
+
+Keep only columns starting with "arr".
+
+In base R:
+
+```{r eval=FALSE}
+flights[,substr(names(flights), 1, 3) == "arr"]
+```
+
+In `dplyr`:
+
+```{r}
+select(flights, starts_with("arr"))
+```
+
+## Rename columns with `rename()`
+
+`rename()` is a variant of `select()` that keeps all variables/columns while renaming the specified ones.
+
+In base R:
+
+```{r eval=FALSE}
+flights2 <- flights
+names(flights2)[names(flights2)=="year" |
+                  names(flights2)=="month" |
+                  names(flights2)=="day"] <- c("YEAR","MONTH","DAY")
+```
+
+In `dplyr`:
+
+```{r}
+rename(flights, YEAR=year, MONTH=month, DAY=day)
+```
+
+# Transforming variables with `mutate()`
+
+Create a new variable giving the average air speed (in mph) of each flight.
+
+In base R:
+
+```{r eval=FALSE}
+flights2 <- flights
+flights2$speed <- flights2$distance / flights2$air_time * 60
+```
+
+In `dplyr`:
+
+```{r}
+mutate(flights, speed = distance / air_time * 60)
+```
+
+---
+
+Create two new variables giving (1) the average air speed (in mph) of each flight and (2) the amount of time gained in the air.
+
+In base R:
+
+```{r eval=FALSE}
+flights2 <- flights
+flights2$speed <- flights2$distance / flights2$air_time * 60
+flights2$gain <- flights2$arr_delay - flights2$dep_delay
+```
+
+In `dplyr`:
+
+```{r}
+mutate(flights,
+       speed = distance / air_time * 60,
+       gain = arr_delay - dep_delay)
+```
+
+## Anatomy of `mutate()`
+
+`mutate(data, var1 = expr1, var2 = expr2, ...)`
+
+- The first argument is the data
+
+- The following arguments are named vectorized expressions that output a vector of the same length
+
+- When used with `data.frame`s, you can use variables created in the same `mutate()` call in the subsequent expressions
+
+## Useful functions for creating variables
+
+- Arithmetic such as `+`, `-`, `*`, `/`, `^`, etc.
+
+    - These are vectorized and will recycle shorter variables
+    
+- Modular arithmetic such as `%%` and `%/%`
+
+    - Useful for breaking apart integers (e.g., time into hours + minutes)
+
+- Logs such as `log()`, `log2()` and `log10`
+
+    - Useful for data with multiplicative variance
+    
+- Offsets such as `dplyr::lead()` and `dplyr::lag()`
+
+    - Useful for running differences and data over time points
+    
+- Cumulative summaries such as `cumsum()`, `cumprod()`, `cummax()`, and `cummin()`
+
+    - Also `dplyr::cummean()` for running means
+    
+- Logical operators such as ``==`, `!=`, `>`, `<`, `>=`, `<=`, etc.
+
+    - Useful for turning continuous variables into categorical
+    
+- `dplyr::n()` gives the number of observations
+
+    - `n()` can only be used inside `mutate()`, `filter()` and `summarise()`
+
+## New variables with `transmute()`
+
+`transmute()` is a variant of `mutate()` that keeps only the new variables and drops the rest.
+
+In base R:
+
+```{r eval=FALSE}
+data.frame(distance = flights$distance,
+           speed = flights$distance / flights$air_time * 60,
+           gain = flights$arr_delay - flights$dep_delay,
+           gain_per_mile = (flights$arr_delay - flights$dep_delay) /
+             flights$distance)
+```
+
+In `dplyr`:
+
+```{r}
+transmute(flights,
+          distance = distance,
+          speed = distance / air_time * 60,
+          gain = arr_delay - dep_delay,
+          gain_per_mile = gain / distance)
+```
+
+# Summary statistics with `summarise()`
+
+Get the mean departure and arrival delay.
+
+In base R:
+
+```{r eval=FALSE}
+data.frame(mean_dep_delay = mean(flights$dep_delay,
+                                 na.rm=TRUE),
+           mean_arr_delay = mean(flights$arr_delay,
+                                 na.rm=TRUE))
+```
+
+In `dplyr`:
+
+```{r}
+summarise(flights,
+          mean_dep_delay = mean(dep_delay, na.rm=TRUE),
+          mean_arr_delay = mean(arr_delay, na.rm=TRUE))
+```
+
+## Anatomy of `summarise()`
+
+`summarise(data, summary1 = expr1, summary2 = expr2, ...)`
+
+- The first argument is the data
+
+- The following arguments are expressions that output a single value from a vector of values
+
+- It is particularly important to consider missing values when summarizing data
+
+- Also available as `summarize()`
+
+## Useful functions for calculating summary statistics
+
+- Measures of location such as `mean()` and `median()`
+
+- Measures of spread such as `sd()`, `var()`, `IQR()`, and `mad()`
+
+- Measures of rank such as `min()`, `max()`, and `quantile()`
+
+- Counts such as:
+
+    - `dplyr::n()` gives the number of observations
+    
+    - `sum(!is.na(x))` gives the number of non-missing values
+    
+    - `dplyr::n_distinct()` gives the number of unique values
+    
+- Remember that `sum(x == 10)` gives the count of `x == 10`
+
+    - What does `mean(x == 10)` calculate?
+
+---
+
+Calculate the proportion of flights delayed more than 2 hours on arrival.
+
+```{r}
+summarise(flights, mean(arr_delay > 120, na.rm=TRUE))
+```
+
+----
+
+Calculate the number of unique airline carriers.
+
+```{r}
+summarise(flights, n_distinct(carrier))
+```
+
+----
+
+Calculate the proportion of flights with missing air times.
+
+```{r}
+summarise(flights, sum(is.na(air_time)) / n())
+```
+
+## Grouped transformations with `group_by()`
+
+`summarise()` and the other data manipulation verbs in `dplyr` become much more powerful when paired with `group_by()`.
+
+Count the number of flights from each carrier.
+
+```{r}
+summarise(group_by(flights, carrier), n())
+```
+
+Calculate the average arrival delay for each carrier.
+
+```{r}
+summarise(group_by(flights, carrier),
+          mean(arr_delay, na.rm=TRUE))
+```
+
+You can group by multiple variables.
+
+Use `ungroup()` to ungroup a grouped dataset.
+
+# Piping with the pipe operator
+
+Combining multiple `dplyr` verbs becomes much more expressive when used with the pipe operator `%>%`.
+
+The pipe operator takes the return value of the expression on the LHS and turns it into the first argument of the function on the RHS.
+
+```{r eval=FALSE}
+foo(bar(baz(x)))
+```
+
+is the same as
+
+```{r eval=FALSE}
+baz(x) %>% bar() %>% foo()
+```
+
+is the same as
+
+```{r eval=FALSE}
+x %>% baz() %>% bar() %>% foo()
+```
+
+----
+
+```{r eval=FALSE}
+summarise(group_by(flights, carrier),
+          mean(arr_delay, na.rm=TRUE))
+```
+
+becomes
+
+```{r eval=FALSE}
+group_by(flights, carrier) %>%
+          summarise(mean(arr_delay, na.rm=TRUE))
+```
+
+or
+
+```{r}
+flights %>%
+  group_by(carrier) %>%
+  summarise(mean(arr_delay, na.rm=TRUE))
+```
+
+# Data transformation + visualization
+
+You can chain together `dplyr` verbs with `ggplot2` too.
+
+Visualize the average delay for each carrier.
+
+```{r}
+library(ggplot2)
+flights %>%
+  group_by(carrier) %>%
+  summarise(delay=mean(arr_delay, na.rm=TRUE)) %>%
+  ggplot(aes(x=carrier, y=delay)) + geom_col()
+```
+
+---
+
+For each destination, visualize the proportion of delayed arriving flights versus the average flight time in the air.
+
+```{r}
+flights %>%
+  group_by(dest) %>%
+  summarise(prop_delayed = mean(arr_delay > 0, na.rm=TRUE),
+            flight_time = mean(air_time, na.rm=TRUE),
+            count = n()) %>%
+  ggplot(aes(x=flight_time, y=prop_delayed)) + geom_point()
+```
+
+---
+
+Map the number of flights from each destination to an aesthetic.
+
+Add a smooth fitted line.
+
+```{r}
+flights %>%
+  group_by(dest) %>%
+  summarise(prop_delayed = mean(arr_delay > 0, na.rm=TRUE),
+            flight_time = mean(air_time, na.rm=TRUE),
+            count = n()) %>%
+  ggplot(aes(x=flight_time,
+             y=prop_delayed)) + 
+  geom_point(aes(size=count), alpha=1/2) +
+  geom_smooth()
+```
+
+# Practice at home
+
+- For carriers that flew more than 1000 flights in 2013, find the number of flights that weren't delayed on arrival.
+
+- Find the average distance flown by each carrier in each month of 2013.
+
+- Plot to total miles flown each month in 2013.
+
+- Plot the proportion of flights delayed by 10 minutes or more for each hour of the day.
+
+- Plot the total distance flown versus the total time in arrival delays for each plane.
+
+- Plot the relationship between the total time in the air and the total distance flown for each plane.
+
+- Plot the average speed flown versus the average distance flown for each destination.
+
+- Find the fastest plane.
+
+

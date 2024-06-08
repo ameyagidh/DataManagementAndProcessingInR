@@ -1,0 +1,589 @@
+---
+title: "Data import and tidying"
+author: "Kylie Ariel Bemis"
+date: "9/21/2020"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Data import and tidying
+
+Below we will practice the often-frustrating but necessary steps that come before we can visualize or model data.
+
+- Importing data (read it into your analysis software)
+
+- Tidying data (put it in a tidy format for data analysis)
+
+- Transforming data (perform any transformations necessary)
+
+Together, these steps are often collectively refered to as data wrangling.
+
+First, we will focus on importing and tidying.
+
+# Tibbles
+
+Tibbles are a type of lightweight data frame used by the `tidyverse`.
+
+They inherit many behaviors from the base R `data.frame`.
+
+In fact, as an S3 class, they inherit from `data.frame` directly.
+
+```{r}
+library(ggplot2)
+mpg
+class(mpg)
+```
+
+The `tbl_df` part tells us that it's a tibble that is fully loaded in memory. The `data.frame` part tells it inherits from `data.frame`.
+
+`tbl` is the tidyverse's generic notion of tabular data. They will become important again later when we discuss working with databases.
+
+## Differences versus `data.frame`
+
+- Tibbles print only the first 10 rows
+
+- Tibbles print only as many columns as fit on your console
+
+- Tibbles print information about the column data type
+
+- Tibbles don't require `row.names`
+
+- Tibbles don't munge column names
+
+- Tibbles don't coerce inputs (`stringsAsFactors=FALSE`)
+
+- Tibbles always use `drop=FALSE` when subsetting with `data[,j]`
+
+- You can always use `as.data.frame` to get an ordinary `data.frame`
+
+## Coercing tibbles with `as_tibble`
+
+```{r}
+library(tibble)
+as_tibble(iris)
+```
+
+## Creating tibbles with `tibble`
+
+```{r}
+tibble(x=1:10, y=11:20, z=letters[1:10])
+```
+
+## Creating tibbles with `tribble`
+
+```{r}
+tribble(~x, ~y, ~z,
+        1,   2,  'i',
+        2,   4,  'j',
+        3,   8,  'k')
+```
+
+## A note on factors
+
+- Categorical variables are stored in R as the `factor` data type
+
+- Factors are stored as integers with character information about levels
+
+    - This allows them to be smaller than `character` vectors
+
+    - This is also useful for many statistical methods
+
+- Many base R functions automatically coerce `character` to `factor`; most `tidyverse` functions do not
+
+    - `data.frame()` vs `tibble()`
+    
+    - `read.csv()` vs `read_csv()`
+
+- `ordered` is an ordered version for categorical variables with order levels
+
+- Can change levels with `levels()<-` or `dplyr::recode()`
+
+- Use `factor` or `character`?
+
+---
+
+```{r}
+fc <- factor(c("red", "red", "blue"))
+fc
+levels(fc) <- c("blue2", "red1")
+fc
+dplyr::recode(fc, red1="one", blue2="two")
+```
+
+# Importing data
+
+At some point, it is necessary to import outside datasets into your data analysis software (R in our case).
+
+Sometimes this can be easy, but sometimes this can be the most tedious and frustrating step in data science.
+
+Data files can be:
+
+- Messy
+
+- Have errors
+
+- An unknown file format
+
+- Text or binary
+
+- Structured or unstructured
+
+Today, we will focus on ways of importing tabular data in a flat text file.
+
+## Importing data with `readr`
+
+The `readr` package is the part of the tidyverse responsible for importing data.
+
+```{r}
+library(readr)
+```
+
+It provides multiple functions for the importing of tabular data.
+
+- `read_csv()` and family read delimited files
+
+    - `read_csv()` and `read_csv2()` read in comma or semicolon separated files, respectively
+
+    - `read_tsv()` reads in tab-delimited files
+    
+    - `read_delim()` allows the user to specify the delimiter
+    
+- `read_fwf()` reads fixed-width files
+
+- `read_file()` and `read_lines()` simply read in lines or full files as `character` data or `raw` (byte) data
+
+We will primarily discuss `read_csv()`.
+
+## Differences with `read.csv()` and related functions
+
+`read.csv()` and similar functions are also provided in any default R installation (package `utils`, loaded automatically in most R sessions).
+
+The `readr` versions such as `read_csv()` have certain advantages:
+
+- They are typically faster (up to 10x)
+
+- They typically use less memory
+
+- They output data as tibbles
+
+    - `character` vectors aren't coerced to `factor`
+    
+    - `row.names` are not added
+    
+    - Column names are not munged
+
+## Reading csv files with `read_csv`
+
+First argument is the path to the file.
+
+This may be a relative path or the full path.
+
+R understands typical *nix shortcuts.
+
+```{r eval=FALSE}
+output1 <- read_csv("path/to/file.csv")
+output1 <- read_csv("/Users/username/data/path/to/file.csv")
+output2 <- read_csv("~/path/to/other/file.csv")
+output1 <- read_csv("../data/path/to/file.csv")
+```
+
+---
+
+```{r}
+mtcars2 <- read_csv(readr_example("mtcars.csv"))
+```
+
+---
+
+```{r}
+mtcars2
+```
+
+---
+
+Inline csv input is also accepted.
+
+```{r}
+read_csv("a,b,c
+          1,2,3
+          4,5,6")
+```
+
+---
+
+```{r}
+read_csv("a,b,c\n1,2,3\n4,5,6")
+```
+
+---
+
+Skip lines with `skip`.
+
+```{r}
+read_csv("The first line of metadata
+          The second line of metadata
+          x,y,z
+          1,2,3", skip = 2)
+```
+
+---
+
+Specify comments with `comment`.
+
+```{r}
+read_csv("# A comment I want to skip
+          x,y,z
+          1,2,3", comment = "#")
+
+```
+
+---
+
+`read_csv()` assumes the first line gives column names.
+
+Set `col_names` to `FALSE` if this is not the case.
+
+```{r}
+read_csv("1,2,3\n4,5,6", col_names = FALSE)
+```
+
+---
+
+Or use `col_names` to set your own column names.
+
+```{r}
+read_csv("1,2,3\n4,5,6", col_names = c("x", "y", "z"))
+```
+
+---
+
+Use `na` to tell `read_csv()` how missing values are specified
+
+```{r}
+read_csv("a,b,c
+          1,2,.", na = ".")
+```
+
+---
+
+`read_csv()` attempts to guess the correct data type for each column.
+
+Use `col_types` and `cols()` to manually specify column data types.
+
+```{r}
+tmp <- read_csv("a,b,c\n1,2,3\n4,5,6",
+         col_types = cols(b=col_character(),
+                          c=col_character()))
+```
+
+---
+
+You can also set a default column data type.
+
+```{r}
+read_csv("a,b,c\n1,2,3\n4,5,6",
+         col_types = cols(.default=col_character()))
+```
+
+---
+
+Sometimes `read_csv()` guesses wrong.
+
+```{r}
+challenge <- read_csv(readr_example("challenge.csv"))
+```
+
+---
+
+```{r}
+problems(challenge)
+```
+
+---
+
+```{r}
+challenge
+```
+
+Did `read_csv()` guess correctly for `y`?
+
+---
+
+Try reading `y` as a character vector.
+
+```{r}
+challenge <- read_csv(readr_example("challenge.csv"),
+                      col_types=cols(x=col_double(),
+                                     y=col_character()))
+```
+
+---
+
+```{r}
+challenge[!is.na(challenge$y),]
+```
+
+---
+
+`y` should be a date.
+
+```{r}
+challenge <- read_csv(readr_example("challenge.csv"),
+                      col_types=cols(x=col_double(),
+                                     y=col_date()))
+```
+
+---
+
+By default, `read_csv()` guesses based on the first 1000 rows.
+
+We can tell `read_csv()` to look at more rows before guessing.
+
+```{r}
+challenge2 <- read_csv(readr_example("challenge.csv"),
+                       guess_max = 1001)
+```
+
+This also fixes the problem in this case.
+
+## Writing csv files with `write_csv`
+
+We can also write out files.
+
+The first argument is the data and the second argument is the path.
+
+```{r, eval=FALSE}
+write_csv(mtcars2, "mtcars2.csv")
+```
+
+Because the data is written as text, all type information is lost.
+
+## Reading other kinds of tabular data
+
+There are many other packages for reading other types of data formats.
+
+Some packages for reading other formats of tabular data include:
+
+- `haven` for reading SPSS, Stata, and SAS files
+
+- `readxl` for reading Excel files
+
+- `DBI` and a database backend allow working with databases
+
+# Tidying data with `tidyr`
+
+The `tidyr` package is the part of the tidyverse responsible for helping you make data tidy.
+
+```{r}
+library(tidyr)
+```
+
+It is primarily designed around solving two common problems:
+
+- One variable is spread across multiple columns.
+
+- One observation is scattered across multiple rows.
+
+The `pivot_longer()` and `pivot_wider()` functions are designed to fix these problems.
+
+## Review of tidy data rules
+
+- Each variable must have its own column.
+- Each observation must have its own row.
+- Each value must have its own cell.
+
+## Going "wider"
+
+Observation is scattered in multiple rows.
+
+The values of `type` should be their own variables.
+
+```{r}
+table2
+```
+
+---
+
+Use `pivot_wider()` to tidy the `type` and `count` columns.
+
+```{r}
+pivot_wider(table2, names_from = type, values_from = count)
+```
+
+---
+
+Many older references will use the older `spread()` function, which works similarly.
+
+```{r}
+spread(table2, key = type, value = count)
+```
+
+## Going "longer"
+
+Column names are values rather than variables.
+
+1999 and 2000 are values of an omitted variable `year`.
+
+```{r}
+table4a
+```
+
+---
+
+Use `pivot_longer()` to tidy the `1999` and `2000` columns.
+
+```{r}
+pivot_longer(table4a, cols=c(`1999`, `2000`), names_to = "year", values_to = "cases")
+```
+
+---
+
+Use `:` to select a range of columns.
+
+```{r}
+pivot_longer(table4a, cols=`1999`:`2000`, names_to = "year", values_to = "cases")
+```
+
+---
+
+Many older references will use the older `gather()` function, which works similarly.
+
+```{r}
+gather(table4a, `1999`, `2000`, key = "year", value = "cases")
+```
+
+## Separating
+
+Sometimes character strings are used to encode values for more than one variable.
+
+`rate` encodes both `cases` and `population` as a single string.
+
+```{r}
+table3
+```
+
+---
+
+```{r}
+separate(table3, rate, into = c("cases", "population"))
+```
+
+---
+
+```{r}
+pets <- tribble(~name, ~description,
+                "Daisy", "CAT_F",
+                "Johnny", "CAT_M",
+                "Patsy", "CAT_F",
+                "Yuma", "DOG_F")
+```
+
+---
+
+Sometimes you want to separate at a specific character.
+
+```{r}
+separate(pets, description, into=c("species", "sex"), sep="_")
+separate(pets, description, into=c("species", "sex"), sep=4)
+```
+
+## Uniting
+
+Sometimes you want to create a variable that combines character encodings from multiple rows.
+
+```{r}
+unite(pets, id, name, description)
+```
+
+---
+
+```{r}
+addressbook <- tribble(~name,   ~city,         ~state,
+                       "Kylie", "Jamaica Plain", "MA",
+                       "Olga",  "Brookline",     "MA")
+```
+
+---
+
+```{r}
+unite(addressbook, address, city, state, sep=", ")
+```
+
+# When to make data 'untidy'?
+
+Sometimes it can be helpful to transform a dataset into an 'untidy' format for a particular purpose.
+
+For example, consider a survey that allows you to select more than one option for a particular question.
+
+The following tibble contains information on students and the classes in which they are enrolled.
+
+```{r}
+classes <- tibble(student = c(0, 1, 2, 3, 4, 5, 6, 7, 8, 9),
+                  year =    c(1, 2, 1, 1, 2, 3, 3, 4, 4, 3),
+                  algrthm = c(1, 1, 1, 0, 0, 0, 1, 1, 1, 1),
+                  datastr = c(1, 0, 0, 1, 0, 1, 0, 0, 0, 0),
+                  opersys = c(0, 0, 0, 0, 1, 1, 1, 0, 0, 1),
+                  prglang = c(0, 1, 0, 0, 1, 1, 1, 0, 0, 0))
+```
+
+--- 
+
+What if we want to calculate summaries based on each class?
+
+We would like to `group_by(class)` using `dplyr`.
+
+To do that, we need to create a `class` variable.
+
+```{r}
+classes2 <- classes %>%
+  gather(key="class", value="is_enrolled",
+       algrthm, datastr, opersys, prglang) %>%
+  dplyr::filter(is_enrolled == 1) %>%
+  dplyr::select(-is_enrolled)
+```
+
+---
+
+A student may now appear in more than one row.
+
+```{r}
+classes2
+```
+
+--- 
+
+Get the number of students in each class.
+
+```{r}
+classes2 %>% dplyr::count(class)
+```
+
+---
+
+We can use a similar technique for when a categorical variable is spread across multiple rows.
+
+```{r}
+pets2 <- tribble(~name, ~is_cat, ~is_dog,
+                "Daisy", "yes", "no",
+                "Johnny", "yes", "no",
+                "Patsy", "yes", "no",
+                "Yuma", "no", "yes")
+```
+
+---
+
+```{r}
+pets2 %>%
+  gather(key="species", value="is_it", is_cat, is_dog) %>%
+  dplyr::filter(is_it == "yes") %>%
+  dplyr::select(-is_it) %>%
+  dplyr::mutate(species=dplyr::recode(species,
+                        is_cat="cat",
+                        is_dog="dog"))
+```
+

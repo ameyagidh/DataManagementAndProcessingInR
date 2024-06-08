@@ -1,0 +1,426 @@
+---
+title: "Data Modeling 1: Linear Regression"
+author: "Kylie Ariel Bemis"
+date: "10/20/2020"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Introduction to Linear Regression
+
+Consider the following simulated data:
+
+```{r message=FALSE}
+library(tidyverse)
+library(modelr)
+
+ggplot(sim1, aes(x=x, y=y)) + 
+  geom_point() +
+  geom_smooth(method="lm")
+```
+
+Fit a simple linear model to it:
+
+```{r}
+fit <- lm(y ~ x, data=sim1)
+```
+
+- `x` is the **predictor** or **explanatory** variable
+- `y` is the **response** variable
+
+In R, we can specify a model using the formula interface: `y ~ x`
+
+We can put transformations directly in the formula, and specify more complex models:
+
+- `y ~ x1 + x2 + x3`
+
+- `log(y) ~ x1 + x2 + x3`
+
+A linear regression model is fit by minimizing the sum of squared errors:
+
+```{r}
+sim1 %>%
+  add_predictions(fit) %>%
+  ggplot(aes(x=x, y=y)) +
+  geom_point() +
+  geom_smooth(method="lm") +
+  geom_segment(aes(xend=x, yend=pred), color="red") +
+  theme_minimal()
+```
+
+In linear regression, the errors are also called residuals:
+
+- `resid = y_obs - y_pred`
+
+Positive residuals indicate under-prediction.
+
+Negative residuals indicate over-prediction.
+
+## Extract model parameters and predicted values
+
+```{r}
+coef(fit) # get parameters estimates
+fitted(fit) # get predicted values
+```
+
+## Extract residuals and number of observations
+
+```{r}
+resid(fit) # get residuals (error terms)
+nobs(fit) # get number of observations
+```
+
+
+## `modelr` versus `stats`
+
+The `stats` package is distributed with all default R installations. It includes functions such as:
+
+- `lm`: fit linear models
+- `glm`: fit generalized linear models
+- `fitted`: get predicted values
+- `resid`: get residuals
+
+The `modelr` package is part of the `tidyverse` (but is not loaded automatically with `library(tidyverse)`), and includes some convenience functions that make it easier to work with models with the `%>%` operator. A few notable functions include:
+
+- `add_predictions`: adds predicted values to a dataset
+- `add_residuals`: adds residuals to a dataset
+- `resample_partition:` split data into testing and training sets
+- `crossv_kfold`: split data into `k` partitions for cross-validation
+
+# Example: Diamonds
+
+Let's build a linear regression model using subset of the `diamonds` dataset:
+
+```{r}
+set.seed(1)
+diamonds10k <- diamonds %>%
+  sample_n(10000) %>%
+  mutate(cut_ord = cut,
+         color_ord = forcats::fct_relevel(color, rev(levels(color))),
+         clarity_ord = clarity,
+         cut = as.character(cut_ord),
+         color = as.character(color_ord),
+         clarity = as.character(clarity_ord))
+```
+
+Above, we make some minor adjustments, to make the categorical variables nominal rather than ordinal, because R handles ordinal variables specially in linear regression.
+
+For simplicity's sake, we will treat `cut`, `color`, and `clarity` as nominal.
+
+# Building a linear regression model
+
+## Plotting a relationship
+
+First we should plot a relationship, and assess whether it's linear or not:
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=carat, y=price)) +
+  geom_point(alpha=0.1) +
+  coord_cartesian(ylim=c(0,20000)) +
+  labs(x="Carat", y="Price (US$)") +
+  theme_minimal()
+```
+
+Is it linear?
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=carat, y=price)) +
+  geom_point(alpha=0.1) +
+  geom_smooth() +
+  geom_smooth(method="lm", color="red") +
+  coord_cartesian(ylim=c(0, 20000)) +
+  labs(x="Carat", y="Price (US$)") +
+  theme_minimal()
+```
+
+No, so we must make use of transformations if we want to use linear regression.
+
+## Log transformations
+
+Log transformations on the response variable are useful for relationships that appear exponential.
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=carat, y=log10(price))) +
+  geom_point(alpha=0.1) +
+  labs(x="Carat", y="Log Price (US$)") +
+  theme_minimal()
+```
+
+This doesn't quite get us there though.
+
+## Log-log transformations
+
+If we flip the coordinates, we can see it may make sense to log-transform `carat` as well.
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=carat, y=log10(price))) +
+  geom_point(alpha=0.1) +
+  labs(x="Carat", y="Log Price (US$)") +
+  coord_flip() +
+  theme_minimal()
+```
+
+Let's try log-transforming both variables:
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=log10(carat), y=log10(price))) +
+  geom_point(alpha=0.1) +
+  labs(x="Log Carat", y="Log Price (US$)") +
+  theme_minimal()
+```
+
+This looks good:
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=log10(carat), y=log10(price))) +
+  geom_point(alpha=0.1) +
+  geom_smooth() +
+  geom_smooth(method="lm", color="red") +
+  coord_cartesian(ylim=c(2.5, 4.25)) +
+  labs(x="Log Carat", y="Log Price (US$)") +
+  theme_minimal()
+```
+
+## Visualizing log transformations
+
+Log transformations have the effect of linearizing approximatley exponential relationships, and making right-skew data more symmetric.
+
+Price:
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=price)) +
+  geom_histogram(binwidth=100) +
+  labs(x="Price (US$)") +
+  theme_minimal()
+```
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=price)) +
+  geom_histogram(bins=200) +
+  scale_x_log10() +
+  labs(x="Price (US$)") +
+  theme_minimal()
+```
+
+Carat:
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=carat)) +
+  geom_histogram(binwidth=0.01) +
+  labs(x="Carat") +
+  theme_minimal()
+```
+
+```{r message=FALSE}
+ggplot(diamonds10k, aes(x=carat)) +
+  geom_histogram(bins=200) +
+  scale_x_log10() +
+  labs(x="Carat") +
+  theme_minimal()
+```
+
+## Fitting the model
+
+We can now fit the model with `lm()`.
+
+```{r}
+fit1 <- lm(log10(price) ~ log10(carat), data=diamonds10k)
+summary(fit1)
+```
+
+## Plotting the predictions
+
+To plot the predictions on the original scale, we will need to un-transform the predictions from the model:
+
+```{r}
+diamonds10k %>%
+  add_predictions(fit1, "log10pred") %>%
+  mutate(pred = 10^log10pred) %>%
+  ggplot(aes(x=carat)) +
+  geom_point(aes(y=price), alpha=0.1) +
+  geom_line(aes(y=pred), color="red", size=1) +
+  coord_cartesian(xlim=range(diamonds10k$carat),
+                  ylim=range(diamonds10k$price)) +
+  labs(x="Carat", y="Price (US$)") +
+  theme_minimal()
+```
+
+# Model diagnostics
+
+Plotting the residuals (errors) is a good way of evaluating a model visually and checking for violations of model assumptions.
+
+We expect the true error to be randomly distributed (with a normal distribution for linear models), so plotting the residuals against other variables should show random noise with no systematic pattern.
+
+A systematic pattern when plotted with a variable used in the model indicates a violation of model assumptions.
+
+A systematic pattern when plotted with an unused variables indicates a relationship that your model has not yet adequately captured.
+
+## Plotting the residuals
+
+Look for "simple random scatter".
+
+```{r}
+diamonds10k %>%
+  add_residuals(fit1, "resid") %>%
+  ggplot(aes(x=log10(carat))) +
+  geom_point(aes(y=resid), alpha=0.1) +
+  labs(x="Log Carat", y="Residuals") +
+  theme_minimal()
+```
+
+Despite some artifacts, this looks okay.
+
+## Bad residuals
+
+What if we had fit the model on the un-transformed data?
+
+```{r}
+fitbad <- lm(price ~ carat, data=diamonds10k)
+```
+
+We see a clear systematic pattern in the residuals:
+
+```{r}
+diamonds10k %>%
+  add_residuals(fitbad, "resid") %>%
+  ggplot(aes(x=log10(carat))) +
+  geom_point(aes(y=resid), alpha=0.1) +
+  labs(x="Log Carat", y="Residuals") +
+  theme_minimal()
+```
+
+This indicates a violation of model assumptions (linearity).
+
+## Normality of residuals
+
+We can also check if the residuals are approximately normal.
+
+A qq-plot will be approximately linear if this is the case.
+
+```{r}
+diamonds10k %>%
+  add_residuals(fit1, "resid") %>%
+  ggplot(aes(sample=resid)) +
+  geom_qq() +
+  theme_minimal()
+```
+
+```{r}
+diamonds10k %>%
+  add_residuals(fit1, "resid") %>%
+  ggplot(aes(x=resid)) +
+  geom_histogram(bins=100) +
+  labs(x="Residuals") +
+  theme_minimal()
+```
+
+For the bad model, we see non-normal residuals:
+
+```{r}
+diamonds10k %>%
+  add_residuals(fitbad, "resid") %>%
+  ggplot(aes(sample=resid)) +
+  geom_qq() +
+  theme_minimal()
+```
+
+```{r}
+diamonds10k %>%
+  add_residuals(fitbad, "resid") %>%
+  ggplot(aes(x=resid)) +
+  geom_histogram(bins=100) +
+  labs(x="Residuals") +
+  theme_minimal()
+```
+
+## Residuals and candidate predictors
+
+Plotting residuals against other variables not used in the model can reveal additional relationships not yet captured by the model.
+
+The residuals serve as a surrogate variable for the response variable, and show the variation in `price` that hasn't been captured by the model.
+
+```{r}
+diamonds10k %>%
+  add_residuals(fit1, "resid") %>%
+  ggplot(aes(x=cut_ord, y=resid)) +
+  geom_boxplot() +
+  labs(x="Cut", y="Residuals") +
+  theme_minimal()
+```
+
+```{r}
+diamonds10k %>%
+  add_residuals(fit1, "resid") %>%
+  ggplot(aes(x=color_ord, y=resid)) +
+  geom_boxplot() +
+  labs(x="Color", y="Residuals") +
+  theme_minimal()
+```
+
+```{r}
+diamonds10k %>%
+  add_residuals(fit1, "resid") %>%
+  ggplot(aes(x=clarity_ord, y=resid)) +
+  geom_boxplot() +
+  labs(x="Clarity", y="Residuals") +
+  theme_minimal()
+```
+
+We can see that by modeling `price` with `carat`, we have removed the variation in `price` that can be explained by `carat`, and the leftover variation shows a sensible relationship with the categorical variables `cut`, `color`, and `clarity`.
+
+## Categorical variables and linear regression
+
+Using categorical variables requires some special care that is handled automatically by R, but must be considered when intepretting model coefficients.
+
+Consider the following simulated data:
+
+```{r}
+sim2
+```
+
+```{r}
+ggplot(sim2, aes(x=x, y=y)) + geom_boxplot()
+```
+
+Linear models use indicator variables to model categorical predictors.
+
+Each indicator variable is 0 or 1, where 1 indicates that the value of the categorical variable for that observation is equal to the level of the indicator variable.
+
+```{r}
+model_matrix(sim2, y ~ x)
+```
+
+However, we can't have both include intercept and also have as many indicators as levels, or the model would be over-parameterized (one column is a perfect linear combination of other columns).
+
+Therefore, one of the levels (usually the first or last, in our case "a") becomes the reference level and is not included in the indicator variables.
+
+```{r}
+fit <- lm(y ~ x, data=sim2)
+fit
+```
+
+For our dataset `sim2`, why is the level `a` of `x` not included in the model?
+
+It is actually included as the 'default' level, so it will correspond to the intercept. We would calculate the predicted values for each level as:
+
+```{r}
+sim2 %>%
+  add_predictions(fit) %>%
+  ggplot(aes(x=x)) +
+  geom_point(aes(y=y)) +
+  geom_point(aes(y=pred), col="red", size=2)
+```
+
+# Fitting a new model
+
+```{r}
+fit2 <- lm(log10(price) ~ log10(carat) + cut + color + clarity, data=diamonds10k)
+summary(fit2)
+```

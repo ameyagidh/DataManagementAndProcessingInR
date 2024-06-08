@@ -1,0 +1,1163 @@
+---
+title: "Introduction to ggplot2: grammar of graphics"
+author: "Kylie Ariel Bemis"
+date: "9/18/2020"
+output:
+  html_document:
+    toc: true
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# A Layered "Grammer of Graphics"
+
+Components of a plot:
+
+- Default dataset and set of mappings from variables to aesthetics
+
+- One or more layers, each having:
+
+    - A geometric object
+    
+    - A statistical transformation
+    
+    - A position adjustment
+    
+    - (Optional) A dataset
+    
+    - (Optional) A set of aesthetic mappings
+    
+- A scale for each mapped aesthetic
+
+- A coordinate system
+
+- A facet specification
+
+
+## A simple example (revisited)
+
+```{r}
+simple <- data.frame(A=c(2, 1, 4, 9),
+                    B=c(3, 2, 5, 10),
+                    C=c(4, 1, 15, 80),
+                    D=c('a', 'a', 'b', 'b'))
+simple
+```
+
+We wish to create a scatter plot of A versus C, using shape for D.
+
+What are:
+
+- The default dataset and aesthetic mappings?
+
+- The layers?
+
+    - The geometric object?
+    
+    - The statistical transformation?
+    
+    - The position adjustment?
+    
+- The scales for the mapped aesthetics?
+    
+- The coordinate system?
+
+- The facet specification?
+
+### Plotting with `ggplot2` syntax
+
+```{r simple}
+library(ggplot2)
+
+ggplot(data=simple,
+       mapping=aes(x=A, y=C, shape=D)) +
+  layer(geom="point",
+        stat="identity",
+        position="identity") +
+  scale_x_continuous() +
+  scale_y_continuous() +
+  scale_shape_discrete() +
+  coord_cartesian() +
+  facet_null()
+```
+
+### Faceting with `ggplot2` syntax
+
+```{r simple-facet}
+ggplot(data=simple,
+       mapping=aes(x=A, y=C, shape=D)) +
+  layer(geom="point",
+        stat="identity",
+        position="identity") +
+  scale_x_continuous() +
+  scale_y_continuous() +
+  coord_cartesian() +
+  facet_wrap(~D)
+```
+
+## Sensible defaults
+
+A number of these can be considered sensible defaults:
+
+- For `geom="point"`, use `stat="identity"` unless otherwise specified
+
+- For `geom="point"`, use `position="identity"`  unless otherwise specified
+
+- Cartesian coordinate system by default
+
+- No facets unless explicitly specified
+
+## The usual way -- the concise `ggplot2` syntax
+
+```{r simpler}
+ggplot(simple, aes(x=A, y=C, shape=D)) + 
+  geom_point()
+```
+
+## Every `geom` has a default `stat`
+
+- Scatter plot - `geom_point`
+    - Identity - `stat_identity`
+
+- Line plot - `geom_line`
+    - Identity - `stat_identity`
+
+- Box plot - `geom_boxplot`
+    - Boxplot (five summary statistics + outliers) - `stat_boxplot`
+
+- Histogram - `geom_histogram`
+    - Binning - `stat_bin`
+
+- Bar plot - `geom_bar`
+    - Count - `stat_count`
+
+These can always be changed!
+
+# Example: Fuel Economy in Cars
+
+```{r}
+mpg
+```
+
+## Mapping aesthetics
+
+Plot engine size versus highway miles per gallon
+
+```{r mpg-1}
+ggplot(data = mpg,
+       mapping = aes(x=displ, y=hwy)) + 
+  geom_point()
+```
+
+Map class to color
+
+```{r mpg-2}
+ggplot(data = mpg,
+       mapping = aes(x=displ,
+                     y=hwy,
+                     color=class)) + 
+  geom_point()
+```
+
+Map number of cylinders to size
+
+```{r mpg-3}
+ggplot(data = mpg,
+       mapping = aes(x=displ,
+                     y=hwy,
+                     color=class,
+                     size=cyl)) + 
+  geom_point()
+```
+
+## Faceting
+
+Facet by drive type (front/rear/4-wheel)
+
+```{r mpg-4}
+ggplot(data = mpg,
+       mapping = aes(x=displ,
+                     y=hwy,
+                     color=class,
+                     size=cyl)) + 
+  geom_point() + facet_grid(~drv)
+```
+
+## Annotations
+
+Add plot annotations such as axis labels, title, theme, etc.
+
+```{r mpg-5}
+ggplot(data = mpg,
+       mapping = aes(x=displ,
+                     y=hwy,
+                     color=class,
+                     size=cyl)) + 
+  geom_point() + facet_wrap(~drv) +
+  labs(x="Engine Size (Liters)",
+       y="Highway Miles per Gallon",
+       title="Larger engines are less fuel-efficient") +
+  theme_minimal()
+```
+
+Good plots have informatively labeled axes (with units!) and an explanatory title.
+
+This rule may be broken during exploratory data analysis, but make sure to annotate your plots for presentation!
+
+## Additional `geom`s
+
+What if we want to add a smooth line?
+
+```{r mpg-smooth-1}
+ggplot(data = mpg,
+       mapping = aes(x=displ, y=hwy)) + 
+  layer(geom="point",
+        stat="identity",
+        position="identity") +
+  layer(geom="line",
+        stat="smooth",
+        position="identity",
+        params=list(method="auto", formula=y~x, se=TRUE))
+```
+
+Or more simply, use `geom_smooth`
+
+```{r mpg-smooth-2}
+ggplot(data = mpg,
+       mapping = aes(x=displ, y=hwy)) + 
+  geom_point() + geom_smooth()
+```
+
+
+### `geom`s in `ggplot2`
+
+- Geoms in `ggplot2` represent a layer with a set of defaults
+
+    - Geometric object
+
+    - Statistical transformation
+    
+    - Position adjustment
+    
+- Geoms in `ggplot2` are shortcuts for potentially complex layers
+
+- Geoms in `ggplot2` are sometimes redundant with other geoms
+
+### Histograms and bar plots
+
+```{r mpg-hist-1}
+ggplot(data = mpg, mapping = aes(x=class)) +
+  geom_bar()
+```
+
+```{r mpg-hist-2}
+ggplot(data = mpg, mapping = aes(x=hwy)) +
+  geom_histogram()
+```
+
+Why doesn't histogram use the "bar" geom?
+
+----
+
+We can rewrite both explicitly to use `geom="bar"` and different stats.
+
+```{r mpg-bar-3}
+ggplot(data = mpg, mapping = aes(x=class)) +
+  layer(geom="bar",
+        stat="count",
+        position="identity")
+```
+
+```{r mpg-hist-4}
+ggplot(data = mpg, mapping = aes(x=hwy)) +
+  layer(geom="bar",
+        stat="bin",
+        position="identity")
+```
+
+----
+
+We could also use `geom_bar` for both
+
+We can make a histogram with `geom_bar` by overwriting the default stat:
+
+```{r mpg-hist-5}
+ggplot(data = mpg, mapping = aes(x=hwy)) +
+  geom_bar(stat="bin")
+```
+
+### Boxplots
+
+- Boxplots are unique `geom` with a unique `stat`
+
+- They plot the five-number summary + outliers
+
+- Here we plot side-by-side boxplots for highway mpg by class
+
+```{r mpg-boxplot}
+ggplot(data = mpg, mapping = aes(x=class, y=hwy)) +
+  geom_boxplot()
+```
+
+# A template for `ggplot2` plotting
+
+We can develop a simple template for creating plots in `ggplot2`:
+
+```{}
+ggplot(data = <DATA>, mapping = aes(<MAPPINGS>)) + 
+  <GEOM_FUNCTION>()
+```
+
+You will notice this is slightly different from the template that appears in the _R for Data Science_ -- how and why?
+
+# Layers in `ggplot2`
+
+As we've already seen, it is possible to overlay different geoms:
+
+```{r defaults-1}
+ggplot(data = mpg,
+       mapping = aes(x=displ, y=hwy, color=drv)) + 
+  geom_point() + geom_smooth()
+```
+
+In this case, both geoms inherit the default data and aesthetic mappings.
+
+
+## Different aesthetics
+
+However, suppose we want to use different aesthetics for each geom.
+
+We can either give each layer its own aesthetic mapping:
+
+```{r defaults-3}
+ggplot(data = mpg) + 
+  geom_point(mapping=aes(x=displ, y=hwy, color=drv)) + 
+  geom_smooth(mapping=aes(x=displ, y=hwy))
+```
+
+Or we can supply a default aesthetic and override it when necessary:
+
+```{r defaults-4}
+ggplot(data = mpg,
+       mapping=aes(x=displ, y=hwy)) + 
+  geom_point(mapping=aes(color=drv)) + 
+  geom_smooth()
+```
+
+## Different data
+
+We can also specify different datasets for each layer, or allow them to inherit from the default dataset.
+
+```{r defaults-5}
+ggplot(data = mpg, 
+       mapping = aes(x = displ, y = hwy)) + 
+  geom_point(mapping = aes(color = drv)) + 
+  geom_smooth(data = mpg[mpg$drv == "f",])
+```
+
+## Overplotting: rounded values
+
+Consider the following plot:
+
+```{r overplot-1}
+ggplot(data = mpg,
+       mapping = aes(x=displ, y=hwy)) + 
+  geom_point()
+```
+
+
+Notice how all of the data points are on neat lines?
+
+### Solution: jitter
+
+```{r jitter}
+ggplot(data = mpg,
+       mapping = aes(x=displ, y=hwy)) + 
+  geom_point(position="jitter")
+```
+
+## Overplotting: too much data
+
+```{r overplot-2}
+ggplot(diamonds, mapping=aes(x=carat, y=price)) +
+  geom_point()
+```
+
+### Solution: transparency
+
+```{r alpha}
+ggplot(diamonds, mapping=aes(x=carat, y=price)) +
+  geom_point(alpha=1/100)
+```
+
+# Geoms and stats in `ggplot2`
+
+## Geom + stat recipes
+
+Geom + stat define many common types of statistical plots
+
+What are these geom + stat combinations?
+
+- geom = "point", stat = "identity"
+
+    - Scatterplot
+
+- geom = "bar", stat = "count"
+
+    - Bar plot
+
+- geom = "bar", stat = "bin"
+
+    - Histogram
+
+- geom = "point", stat = "qq"
+
+    - Quantile-quantile plot
+
+- geom = "boxplot", stat = "boxplot"
+
+    - Boxplot
+
+## Default stats
+
+What are default stats for these geoms?
+
+- `geom_point`
+
+    - `stat_identity`
+
+- `geom_line`
+
+    - `stat_identity`
+
+- `geom_bar`
+
+    - `stat_count`
+
+- `geom_boxplot`
+
+    - `stat_boxplot`
+
+## Remember: geoms are shortcuts
+
+Each geom function represents a set of defaults for:
+
+- A geometric object
+
+- A statistical transformation
+
+- A position adjustment
+
+That means some ggplot2 'geoms' represent the same geometric object w/ different statistical transformations.
+
+What are some examples of this?
+
+- geom = "bar" : geom_bar, geom_histogram
+
+- geom = "point" : geom_point, geom_qq
+
+Are there any ggplot2 'geoms' that represent the same geometric object and statistical transformation but with different position adjustments?
+
+- geom = "point" : geom_point, geom_jitter
+
+### How can we inspect what the defaults are?
+
+1. Check the help page (`?geom_point`, `?geom_qq`)
+
+2. Check the body and formal arguments of the function
+
+```{r}
+geom_histogram
+```
+
+# More plotting with `ggplot2`
+
+Minimally, when plotting with `ggplot2`:
+
+- Initialize a with plot `ggplot()` and (optionally):
+
+    - A default dataset
+    
+    - A default set of aesthetic mappings
+
+- Add at least one layer with a geometric object and default statistical transformation with `geom_xxx()` and (optionally):
+
+    - A dataset
+    
+    - A set of aesthetic mappings
+
+## Building a plot incrementally
+
+With `ggplot2`, plots can be assigned to a variable to be modified and plotted later.
+
+A sequence of `ggplot2` functions won't be plotted (yet) if assigned to a variable.
+
+```{r}
+g <- ggplot(data=mpg)
+```
+
+---
+
+```{r}
+g + geom_point(mapping=aes(x=displ, y=hwy))
+```
+
+---
+
+```{r}
+g + geom_jitter(mapping=aes(x=displ, y=hwy))
+```
+
+
+
+## Using `stat` functions
+
+Sometimes it makes more sense to think about the statistical transformation you want to display visually first.
+
+Because each 'stat' also have a default 'geom' in `ggplot2`, you can use the `stat_xxx` functions for plotting as well.
+
+What do you think the default geoms are for these stats?
+
+- `stat_identity`
+
+    - `geom_point`
+
+- `stat_count`
+
+    - `geom_bar`
+
+- `stat_bin`
+
+    - `geom_bar`
+
+- `stat_qq`
+
+    - `geom_point`
+    
+- `stat_boxplot`
+
+    - `geom_boxplot`
+
+---
+
+```{r}
+ggplot(data=mpg) + stat_identity(mapping=aes(x=displ, y=hwy))
+```
+
+---
+
+```{r}
+ggplot(data=mpg) + stat_count(mapping=aes(x=drv))
+```
+
+---
+
+```{r}
+ggplot(data=mpg) + stat_bin(mapping=aes(x=hwy))
+```
+
+---
+
+```{r}
+ggplot(data=mpg) + stat_qq(mapping=aes(sample=hwy))
+```
+
+---
+
+```{r}
+ggplot(data=mpg) + stat_boxplot(mapping=aes(x=drv, y=hwy))
+```
+
+## When to use `stat_xxx` instead of `geom_xxx` functions?
+
+- Using the `stat_xxx` functions to specify plots is not as common in `ggplot2` as using the `geom_xxx` functions
+
+- However, in some cases, the statistical transformation you want to visualize is more readily obvious than the geometric object
+
+- Adjusting parameters for complex statistical transformations (e.g., smoothed trend lines) may be easier using the `stat_xxx` function
+
+- Use whichever is more intuitive for you
+
+**Most plot types can be defined by a geom + stat.**
+
+# Computed variables
+
+Many statistical transformations calculate values to be plotted.
+
+A basic example are histograms and bar plots.
+
+By default, both `geom_histogram` and `geom_bar` plot counts.
+
+What if we want to plot the density of each bin?
+
+What if we want to plot the proportion for each group?
+
+---
+
+Use `..density..` to plot densities in a histogram.
+
+```{r hist-1}
+ggplot(data=mpg) + 
+  geom_histogram(mapping=aes(x=hwy))
+```
+
+```{r hist-2}
+ggplot(data=mpg) + 
+  geom_histogram(mapping=aes(x=hwy, y=..density..))
+```
+
+---
+
+Use `..prop..` to plot proportions in a bar plot.
+
+```{r bar-1}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv))
+```
+
+```{r bar-2}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv, y=..prop..))
+```
+
+What went wrong above?
+
+## Finding computed variables
+
+How do we find out exactly what is calculated?
+
+Check the documentation:
+
+```{r eval=FALSE}
+?geom_bar
+?stat_count
+```
+
+----
+
+**"Bar charts"**
+
+Description
+
+> There are two types of bar charts: geom_bar makes the height of the bar proportional to the number of cases in each group...
+
+Computed variables
+
+- count
+
+    - number of points in bin
+    
+- prop
+
+    - groupwise proportion
+
+---
+
+Set the `group` aesthetic to a constant to calculate correct proportions.
+
+```{r bar-3}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv, y=..prop.., group=1))
+```
+
+---
+
+Does it matter what `group` is as long as it's a constant?
+
+```{r}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv, y=..prop.., group=2))
+```
+
+Will this work?
+
+```{r}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv, y=..prop.., group=drv))
+```
+
+```{r}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv, y=..prop.., group="foo"))
+```
+
+---
+
+Can we replicate the original behavior while specifying `y` explicitly?
+
+```{r}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv)) +
+  labs(title="Implicit y")
+```
+
+versus
+
+```{r}
+ggplot(data=mpg) + 
+  geom_bar(mapping=aes(x=drv, y=..count..)) +
+  labs(title="Explicit y")
+```
+
+## More on calculated variables
+
+- What does `stat_smooth` calculate?
+
+    - What geom does it use?
+    
+    - Why doesn't it use `geom_line`?
+
+```{r smooth, eval=FALSE}
+ggplot(data=mpg) + stat_smooth(aes(x=displ,
+                                   y=hwy),
+                               geom="smooth")
+```
+
+versus
+
+```{r line, eval=FALSE}
+ggplot(data=mpg) + stat_smooth(aes(x=displ,
+                                   y=hwy),
+                               geom="line")
+```
+
+`geom="smooth"`: computed variable (standard error) is plotted
+
+`geom="line"`: `geom_line` doesn't know how to plot standard error
+
+# Changing the default stat
+
+What if we want to pre-compute our statistical summaries instead of using a `ggplot2` statistical transformation?
+
+Summarize the count of cars of each drive type:
+
+```{r}
+drive <- data.frame(type = c("four wheel",
+                             "front wheel",
+                             "rear wheel"),
+                    count = c(sum(mpg$drv == "4"),
+                              sum(mpg$drv == "f"),
+                              sum(mpg$drv == "r")))
+```
+
+What does `sum()` do?
+
+How would the code above change if there were missing values?
+
+---
+
+If we don't want to use `stat="count"` (the default), then we need to change it so no statistical transformation takes place.
+
+```{r drv}
+ggplot(drive) + geom_bar(mapping=aes(x=type, y=count),
+                              stat="identity")
+```
+
+---
+
+How could we change the code below to plot proportions instead?
+
+```{r, eval=FALSE}
+drive <- data.frame(type = c("four wheel",
+                             "front wheel",
+                             "rear wheel"),
+                    prop = c(sum(mpg$drv == "4") / nrow(mpg),
+                              mean(mpg$drv == "f"),
+                              mean(mpg$drv == "r")))
+
+ggplot(drive) + geom_col(mapping=aes(x=type, y=prop))
+```
+
+Hint: `nrow()` gives the number of rows in a `data.frame`
+
+*Bonus: Can you simplify the code by finding a 'geom' function that uses geom="bar" with stat="identity" by default?*
+
+# Derived variables
+
+What if we only want to distinguish cars with less than 6 cylinders and cars with 6 cylinders or more?
+
+```{r calc-4}
+ggplot(data=mpg) + geom_point(aes(x=displ,
+                                  y=hwy,
+                                  color=cyl >= 6))
+```
+
+----
+
+What if we want to plot highway vs city mileage while distinguishing whether each car has an engine size smaller or larger than 3 L?
+
+```{r calc-5}
+ggplot(data=mpg) + geom_point(aes(x=cty,
+                                  y=hwy,
+                                  color=displ >= 3))
+```
+
+----
+
+What if we want to make a boxplot of highway mileage for cars with engine sizes smaller and larger than 3 L?
+
+
+```{r calc-6}
+ggplot(data=mpg) + geom_boxplot(aes(x=displ >= 3,
+                                    y=hwy))
+```
+
+## Convert continous to categorical
+
+Suppose we want to plot engine size vs highway mileage while visualizing the number of cylinders for each car.
+
+```{r calc-1}
+ggplot(data=mpg) + geom_point(aes(x=displ,
+                                  y=hwy,
+                                  size=cyl))
+```
+
+
+This is plot is kind of busy and difficult to read though.
+
+----
+
+What if we mapped number of cylinders to color instead?
+
+```{r calc-2}
+ggplot(data=mpg) + geom_point(aes(x=displ,
+                                  y=hwy,
+                                  color=cyl))
+```
+
+This isn't what we wanted: `ggplot2` is treating `cyl` as continuous.
+
+### Use `as.factor()`
+
+Make the variable categorical with `as.factor()`:
+
+```{r calc-3}
+ggplot(data=mpg) + geom_point(aes(x=displ,
+                                  y=hwy,
+                                  color=as.character(cyl)))
+```
+
+What does `as.factor()` do? Would `as.character()` also work?
+
+## Summary: mapping aesthetics to calculated variables
+
+- Aesthetics can be mapped to expressions that calculate new variables
+
+- Aesthetics can be mapped to variables calculated by stats functions
+
+# Position adjustments
+
+Earlier, we demonstrated a useful position adjustment: "jitter"
+
+What are other useful position adjustments?
+
+## Position = "stack"
+
+```{r stack}
+ggplot(mpg) + geom_bar(aes(x=drv,
+                           fill=hwy >= 25),
+                       position="stack")
+
+ggplot(mpg) + geom_bar(aes(x=drv,
+                           fill=hwy >= 25))
+```
+
+## Position = "dodge"
+
+```{r dodge}
+ggplot(mpg) + geom_bar(aes(x=drv,
+                           fill=hwy >= 25),
+                       position="dodge")
+```
+
+# Scales
+
+Each aesthetic has a scale associated with it.
+
+Usually, a sensible default is used and we don't have to specify it manually:
+
+```{r}
+ggplot(data=mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  scale_x_continuous() + 
+  scale_y_continuous()
+```
+
+versus
+
+```{r}
+ggplot(data=mpg, aes(x=displ, y=hwy)) +
+  geom_point()
+```
+
+Sometimes it is useful to set a scale manually.
+
+## Controlling scales and legends
+
+Suppose we want to plot both highway and city mileage
+
+```{r scl-1}
+ggplot(data=mpg) +
+  geom_point(mapping=aes(x=displ, y=hwy), color="blue") +
+  geom_point(mapping=aes(x=displ, y=cty), color="red")
+```
+
+Why is there no legend?
+
+----
+
+To generate a legend, an aesthetic must be mapped
+
+```{r scl-2}
+ggplot(data=mpg) +
+  geom_point(mapping=aes(x=displ, y=hwy, color="Highway")) +
+  geom_point(mapping=aes(x=displ, y=cty, color="City")) +
+  labs(y="Mileage")
+```
+
+----
+
+What if we want to use both color and shape?
+
+```{r scl-3}
+ggplot(data=mpg) +
+  geom_point(mapping=aes(x=displ, y=hwy,
+                         color="Highway",
+                         shape="Highway")) +
+  geom_point(mapping=aes(x=displ, y=cty,
+                         color="City",
+                         shape="City"))
+```
+
+But this results in two legends.
+
+## Specifying scales manually
+
+Sometimes it's necessary to manually specify scales:
+
+```{r scl-4, eval=FALSE}
+ggplot(data=mpg) +
+  geom_point(mapping=aes(x=displ, y=hwy,
+                         color="Highway",
+                         fill="Highway",
+                         shape="Highway")) +
+  geom_point(mapping=aes(x=displ, y=cty,
+                         color="City",
+                         fill="City",
+                         shape="City")) +
+  scale_colour_manual(name="Mileage",
+                      values=c("darkred", "darkblue")) +
+  scale_shape_manual(name="Mileage",
+                     values=c(21, 22))
+```
+
+- Allows you to control the legend
+
+- Allows you to specify custom levels for each aesthetic
+
+# Coordinate systems
+
+Each plot uses a coordinate system.
+
+Usually, a sensible default is used and we don't have to specify it manually:
+
+```{r}
+ggplot(data=mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  coord_cartesian()
+```
+
+versus
+
+```{r}
+ggplot(data=mpg, aes(x=displ, y=hwy)) +
+  geom_point()
+```
+
+Sometimes we want to specify a different coordinate system.
+
+## Flipped
+
+```{r flip}
+ggplot(data = mpg, aes(x = manufacturer, y = hwy)) + 
+  geom_boxplot() +
+  coord_flip()
+```
+
+## Polar
+
+```{r polar}
+ggplot(data = mpg, aes(x = 1, fill=class)) + 
+  geom_bar() +
+  coord_polar(theta="y")
+```
+
+## Maps
+
+```{r map}
+library(maps)
+four_corners <- map_data("state",
+                  region=c("arizona",
+                           "new mexico",
+                           "utah",
+                           "colorado"))
+ggplot(four_corners) + 
+  geom_polygon(mapping=aes(x=long,
+                           y=lat,
+                           group=group),
+               fill=NA,
+               color="black") +
+  coord_map()
+```
+
+
+# Faceting
+
+Faceting, also called "trellis" or "lattice" graphics, use subplots to visualize different subsets of a dataset, by conditioning on the levels of a another variable in the dataset.
+
+## Faceting by 1 categorical variable
+
+Condition on drive type:
+
+```{r fct-1}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  facet_wrap(~drv)
+```
+
+## Faceting by 2 categorical variables
+
+Condition on drive type and number of cylinders:
+
+```{r fct-2}
+ggplot(mpg, aes(x=displ, y=hwy)) +
+  geom_point() +
+  facet_grid(cyl ~ drv)
+```
+
+## Faceting by a continuous variable
+
+Condition on intervals of city mileage:
+
+```{r fct-3}
+ggplot(mpg, aes(displ, hwy)) +
+  geom_point() +
+  facet_wrap(~cut_number(cty, 3))
+```
+
+# Themes
+
+In addition to the traditional components of a layered grammar of graphics, `ggplot` also includes themes that allow control over the overall visual appearance of the plot.
+
+## Notable themes
+
+Several themes are available out-of-the-box.
+
+Default theme:
+
+```{r theme-default}
+g <- ggplot(mpg, aes(x=displ, y=hwy, color=drv)) +
+  geom_point() +
+  geom_smooth()
+g
+```
+
+Minimal:
+
+```{r theme-minimal}
+g + theme_minimal()
+```
+
+Dark:
+
+```{r theme-dark}
+g + theme_dark()
+```
+
+Light:
+
+```{r theme-light}
+g + theme_light()
+```
+
+Void:
+
+```{r theme-void}
+g + theme_void()
+```
+
+You can build your own theme with `theme()`.
+
+## Adjusting annotations
+
+Themes can useful for adjusting the non-data components of a plot.
+
+For example, adjusting axis labels:
+
+```{r}
+ggplot(mpg, aes(x=manufacturer, y=hwy)) +
+  geom_boxplot() +
+  theme_minimal()
+```
+
+versus
+
+```{r}
+ggplot(mpg, aes(x=manufacturer, y=hwy)) +
+  geom_boxplot() +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+```
+
+There are too many such options to go through, so check the documentation if you want to learn how to use themes better.
+
+# Exporting plots with `pdf()`
+
+Use external graphics devices like `pdf()`, `png()`, and `tiff()` to export any graphics generated by R.
+
+```{r eval=FALSE}
+pdf("mpg.pdf", width=6, height=3)
+ggplot(mpg, aes(x=displ, y=hwy)) + 
+  geom_point(aes(color=class)) + geom_smooth() +
+  labs(title="Cars with larger engines get worse mileage",
+       x="Engine size (liters)", y="Highway mileage (per gallon)")
+dev.off()
+```
+
+# Summary: `ggplot2` plotting (full specification)
+
+```{r eval=FALSE}
+ggplot(data = <DATASET>,
+       mapping = aes(<MAPPINGS)) +
+  layer(geom = <GEOM>,
+        stat = <STAT>,
+        position = <POSITION>) +
+  <SCALE_FUNCTION>() +
+  <COORDINATE_FUNCTION>() +
+  <FACET_FUNCTION>()
+```
+
+# Summary: `ggplot2` plotting (concise specification)
+
+```{r eval=FALSE}
+ggplot(data = <DATASET>,
+       mapping = aes(<MAPPING>)) +
+  <GEOM_FUNCTION>(stat = <STAT>,
+                  position = <POSITION>) +
+  <COORDINATE_FUNCTION>() +
+  <FACET_FUNCTION>()
+```
+
+or
+
+```{r eval=FALSE}
+ggplot(data = <DATASET>,
+       mapping = aes(<MAPPINGS)) +
+  <GEOM_FUNCTION>()
+```
+
+
+
+

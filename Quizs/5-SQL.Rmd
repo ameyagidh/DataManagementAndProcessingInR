@@ -1,0 +1,600 @@
+---
+title: "Relational Data and SQL"
+author: "Kylie Ariel Bemis"
+date: "10/5/2020"
+output:
+  html_document:
+    toc: yes
+  pdf_document:
+    toc: yes
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# R and databases
+
+Often, relational data is stored in a database managed by an RDBMS, so we need to know how to work with data in a database.
+
+A database can also be a good solution for data which you do not want to load all into memory at once.
+
+R and `dplyr` can interface with databases through the `DBI` package and a suitable backend:
+
+- `RSQLite` works with SQLite databases
+
+- `RMySQL` works with MySQL databases
+
+- `RPostgreSQL` works with PostgreSQL databases
+
+etc.
+
+We can work with these with `dplyr` using the `dbplyr` package.
+
+## R and databases with `dbplyr`
+
+Suppose we wish to work with an SQLite database.
+
+First we need to install the necessary packages.
+
+```{r eval=FALSE}
+install.packages(c("DBI", "RSQLite", "dbplyr"))
+```
+
+Then we create some example tables.
+
+```{r}
+library(tidyverse)
+library(RSQLite)
+
+Student <- tribble(
+  ~sid, ~name, ~major, ~gpa,
+  "0001", "John", "CS", NA,
+  "0002", "Lucy", "DS", 4.00,
+  "0003", "Aiden", "CS", 3.33
+)
+
+Course <- tribble(
+  ~crn, ~course, ~dept, ~term,
+  "00234", "Intro CS", "CS", "Fall2020",
+  "00653", "Intro DS", "CS", "Fall2020",
+  "00783", "Algorithms", "CS", "Fall2020",
+  "01945", "ML & AI", "EE", "Spring2021"
+)
+
+Enrolled <- tribble(
+  ~sid, ~crn, ~grade,
+  "0002", "00653", "A",
+  "0002", "01945", NA,
+  "0003", "00783", "B+"
+)
+```
+
+## Using a SQLite database in-memory
+
+We can create an ad-hoc SQLite database in memory.
+
+We would replace the second argument of `dbConnect()` with a filepath to connect to a file-based database.
+
+```{r}
+con <- dbConnect(SQLite(), ":memory:")
+
+dbWriteTable(con, "student", Student)
+dbWriteTable(con, "course", Course)
+dbWriteTable(con, "enrolled", Enrolled)
+```
+
+Use `tbl()` to create a database-backed data frame.
+
+```{r}
+student <- tbl(con, "student")
+course <- tbl(con, "course")
+enrolled <- tbl(con, "enrolled")
+```
+
+# Relational algebra
+
+## Projection
+
+Projection selects attributes (columns).
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT name, major
+           FROM student")
+```
+
+dplyr:
+
+```{r}
+select(student, name, major)
+```
+
+---
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student")
+```
+
+dplyr:
+
+```{r}
+select(student, everything())
+```
+
+## Selection
+
+Selection filters tuples (rows) based on conditions.
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT name, gpa
+           FROM student
+           WHERE gpa > 3.5")
+```
+
+dplyr:
+
+```{r}
+student %>%
+  select(name, gpa) %>%
+  filter(gpa > 3.5)
+```
+
+---
+
+```{r}
+dbGetQuery(con,
+           "SELECT name, gpa
+           FROM student
+           WHERE gpa IS NOT NULL")
+```
+
+
+```{r}
+student %>%
+  select(name, gpa) %>%
+  filter(!is.na(gpa))
+```
+
+## Rename
+
+Rename attributes (columns).
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT
+            sid AS ID,
+            name AS student
+           FROM student")
+```
+
+dplyr:
+
+
+```{r}
+student %>%
+  select(sid, name) %>%
+  rename(ID=sid, student=name)
+```
+
+```{r}
+transmute(student, ID=sid, student=name)
+```
+
+## Cross-product
+
+Take all combinations of all tuples (rows) in both tables.
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student, enrolled")
+```
+
+dplyr:
+
+No obvious form; rarely used.
+
+## Natural join
+
+Combinations of tuples (rows) where they have equal values for common attributes (columns).
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT DISTINCT
+            S.sid, name, major, gpa, crn, grade
+           FROM student S, enrolled E
+           WHERE S.sid = E.sid")
+```
+
+dplyr:
+
+```{r}
+inner_join(student, enrolled)
+```
+
+## Set operations
+
+Same as set theory equivalents. Both tables must have the same attributes.
+
+```{r}
+Student2 <- tribble(
+  ~sid, ~name, ~major, ~gpa,
+  "0002", "Lucy", "DS", 4.00,
+  "0004", "Rosa", "DS", 3.67
+)
+
+dbWriteTable(con, "student2", Student2)
+
+student2 <- tbl(con, "student2")
+
+student
+
+student2
+```
+
+SQL:
+
+```{r}
+# union
+dbGetQuery(con,
+           "SELECT * FROM student
+           UNION
+           SELECT * FROM student2")
+
+# difference
+dbGetQuery(con,
+           "SELECT * FROM student
+           EXCEPT
+           SELECT * FROM student2")
+
+# intersection
+dbGetQuery(con,
+           "SELECT * FROM student
+           INTERSECT
+           SELECT * FROM student2")
+```
+
+dplyr:
+
+```{r}
+union(student, student2)
+
+setdiff(student, student2)
+
+intersect(student, student2)
+```
+
+# Aggregation
+
+## Simple aggregation
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT AVG(gpa)
+           FROM student")
+```
+
+dplyr:
+
+```{r}
+summarize(student, mean(gpa, na.rm=TRUE))
+```
+
+## Simple aggregation with filtering
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT AVG(gpa)
+           FROM student
+           WHERE major = 'CS'")
+```
+
+dplyr:
+
+```{r}
+student %>%
+  filter(major == "CS") %>%
+  summarize(mean(gpa, na.rm=TRUE))
+```
+
+## Grouped aggregation
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT major, AVG(gpa)
+           FROM student
+           GROUP BY major")
+```
+
+dplyr:
+
+```{r}
+student %>%
+  group_by(major) %>%
+  summarize(mean(gpa, na.rm=TRUE))
+```
+
+## Grouped aggregation with filtering
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT major, AVG(gpa) AS gpa
+           FROM student
+           GROUP BY major
+           HAVING gpa > 3.5")
+```
+
+dplyr:
+
+```{r}
+student %>%
+  group_by(major) %>%
+  summarize(gpa=mean(gpa, na.rm=TRUE)) %>%
+  filter(gpa > 3.5)
+```
+
+## Grouped aggregation with sorting
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT major, AVG(gpa) AS gpa
+           FROM student
+           GROUP BY major
+           ORDER BY gpa DESC")
+```
+
+dplyr:
+
+```{r}
+student %>%
+  group_by(major) %>%
+  summarize(gpa=mean(gpa, na.rm=TRUE)) %>%
+  arrange(desc(gpa))
+```
+
+# Joins
+
+```{r}
+Enrolled <- tribble(
+  ~student, ~course, ~grade,
+  "0002", "00653", "A",
+  "0002", "01945", NA,
+  "0003", "00783", "B+"
+)
+
+dbWriteTable(con, "enrolled", Enrolled, overwrite=TRUE)
+
+enrolled <- tbl(con, "enrolled")
+```
+
+## A simple join
+
+There are often multiple ways to express the same join in SQL.
+
+```{r}
+dbGetQuery(con,
+           "SELECT
+           sid, name, course, grade
+           FROM student, enrolled
+           WHERE sid = student")
+```
+
+```{r}
+dbGetQuery(con,
+           "SELECT
+           sid, name, course, grade
+           FROM student
+           JOIN enrolled
+           ON sid = student")
+```
+
+## Inner join
+
+Keep only rows with matching key-values in both tables.
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           JOIN enrolled
+           ON sid = student")
+```
+
+dplyr:
+
+```{r}
+inner_join(student, enrolled, by=c("sid"="student"))
+```
+
+## Left join
+
+Keep all rows in left-hand table.
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           LEFT JOIN enrolled
+           ON sid = student")
+```
+
+dplyr:
+
+```{r}
+left_join(student, enrolled, by=c("sid"="student"))
+```
+
+## Left join with filtering and sorting
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           LEFT JOIN enrolled
+           ON sid = student
+           WHERE major = 'CS'
+           ORDER BY name")
+```
+
+dplyr:
+
+```{r}
+student %>%
+  left_join(enrolled, by=c("sid"="student")) %>%
+  filter(major == "CS") %>%
+  arrange(name)
+```
+
+## Semi join
+
+Keep rows based on matches in another table.
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           WHERE sid IN
+           (
+            SELECT student
+            FROM enrolled
+           )")
+```
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           WHERE EXISTS
+           (
+            SELECT 1
+            FROM enrolled
+            WHERE student.sid = enrolled.student
+           )")
+```
+
+dplyr:
+
+```{r}
+semi_join(student, enrolled, by=c("sid"="student"))
+```
+
+## Anti join
+
+Drop rows based on matches in another table.
+
+SQL:
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           WHERE sid NOT IN
+           (
+            SELECT student
+            FROM enrolled
+           )")
+```
+
+```{r}
+dbGetQuery(con,
+           "SELECT *
+           FROM student
+           WHERE NOT EXISTS
+           (
+            SELECT 1
+            FROM enrolled
+            WHERE student.sid = enrolled.student
+           )")
+```
+
+dplyr:
+
+```{r}
+anti_join(student, enrolled, by=c("sid"="student"))
+```
+
+# SQL and `dplyr`
+
+## Comparison
+
+Below is a table of common data manipulation tasks in both SQL and `dplyr`.
+
+| SQL | dplyr | task |
+|-----|-------|------|
+| SELECT | `select()` | select columns |
+| DISTINCT | `distinct()` | eliminate duplicates |
+| AS | `mutate()` | rename columns |
+| FROM | - | specify tables |
+| WHERE | `filter()` | filter rows |
+| GROUP BY | `group_by()` | group values |
+| HAVING | `filter()` | filter groups |
+| ORDER BY | `arrange()` | sort table |
+
+
+## Lazy queries
+
+When `dplyr` is used with databases, it translates R code into SQL queries.
+
+We can see the query it will execute with `show_query()`
+
+```{r}
+student %>%
+  left_join(enrolled, by=c("sid"="student")) %>%
+  filter(major == "CS") %>%
+  arrange(name) %>%
+  show_query()
+```
+
+(Sometimes the translation isn't quite the same query we'd write ourselves.)
+
+The query is only executed by the database when the results are needed.
+
+This means that the intermediate results aren't stored a standard data frame, but a "lazy data frame", so some functions may not know how to use it.
+
+## Collecting results
+
+To force results to be collected into a standard data frame, use `collect()`.
+
+```{r}
+student %>%
+  left_join(enrolled, by=c("sid"="student")) %>%
+  filter(major == "CS") %>%
+  arrange(name) %>%
+  collect()
+```
+
+
