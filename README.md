@@ -20,3 +20,7 @@ Data science is the discipline at the intersection of statistics, computer scien
 - Introduction to statistical and machine learning models for predictive analytics.
 - Best practices for building reproducible data processing pipelines.
 - Case studies and real-world applications of data science across various domains.
+Ameya
+Santosh
+Gidh
+Leena
