@@ -2,3 +2,14 @@ Assignment3/2017-18-crdc-data/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Retenti
 /Users/ameyagidh/AAAmeya/AllWork/Courses/IDMP/Assignments/Assignment3/dblp.db
 /Users/ameyagidh/AAAmeya/AllWork/Courses/IDMP/Assignments/Assignment3/2017-18-crdc-data/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Retention.csv
 Assignment3/dblp.db
+
+git filter-branch --force --index-filter \
+  'git rm --cached --ignore-unmatch Assignment3/dblp.db' \
+  --prune-empty --tag-name-filter cat -- --all
+
+  git filter-branch --force --index-filter \
+  'git rm --cached --ignore-unmatch Assignment3/2017-18-crdc-data/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Retention.csv
+' \
+  --prune-empty --tag-name-filter cat -- --all
+
+  ameyagidh
