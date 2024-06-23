@@ -21,6 +21,15 @@ Data science is the discipline at the intersection of statistics, computer scien
 - Best practices for building reproducible data processing pipelines.
 - Case studies and real-world applications of data science across various domains.
 
+
+  git filter-branch --force --index-filter \
+  'git rm --cached --ignore-unmatch Assignment3/2017-18-crdc-data/2017-18 Public-Use Files/Data/SCH/CRDC/CSV/Retention.csv
+' \
+  --prune-empty --tag-name-filter cat -- --all
+
+
+git pull --rebase
+
 Ameya
 Santosh
 Gidh
